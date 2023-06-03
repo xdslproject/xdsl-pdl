@@ -1,2 +1,3 @@
 xdsl==0.13.0
 pre-commit
+black
