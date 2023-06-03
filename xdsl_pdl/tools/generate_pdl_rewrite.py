@@ -1,7 +1,7 @@
 import argparse
 from xdsl.xdsl_opt_main import xDSLOptMain
 
-from ..fuzzing.generate_pdl_rewrite import generate_random_pdl_rewrite
+from xdsl_pdl.fuzzing.generate_pdl_rewrite import generate_random_pdl_rewrite
 from xdsl.dialects.builtin import ModuleOp
 
 
