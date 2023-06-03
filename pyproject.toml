@@ -9,7 +9,7 @@ dependencies = [
 ]
 
 [project.scripts]
-pdl-rewrite-fuzzer = "xdsl_pdl.tools.pdl_rewrite_fuzzer:main"
+generate-pdl-rewrite = "xdsl_pdl.tools.generate_pdl_rewrite:main"
 
 [build-system]
 requires = ["setuptools>=43.0.0", "wheel"]
