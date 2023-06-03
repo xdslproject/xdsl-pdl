@@ -1,0 +1,16 @@
+[project]
+name = "xdsl-pdl"
+version = "0.1"
+description = "PDL experiments in xDSL"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+  "xdsl>=0.13, <0.14",
+]
+
+[project.scripts]
+pdl-rewrite-fuzzer = "xdsl_pdl.tools.pdl_rewrite_fuzzer:main"
+
+[build-system]
+requires = ["setuptools>=43.0.0", "wheel"]
+build-backend = "setuptools.build_meta"
