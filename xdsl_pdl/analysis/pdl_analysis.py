@@ -32,6 +32,7 @@ class PDLDebugWarning(Warning):
     ...
 
 
+@dataclass
 class PDLAnalysisFailed(Exception):
     op: Operation
     msg: str

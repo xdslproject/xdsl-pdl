@@ -11,6 +11,7 @@ dependencies = [
 [project.scripts]
 generate-pdl-rewrite = "xdsl_pdl.tools.generate_pdl_rewrite:main"
 generate-pdl-matches = "xdsl_pdl.tools.generate_pdl_matches:main"
+analyze-pdl-rewrite = "xdsl_pdl.tools.analyze_pdl_rewrite:main"
 
 [build-system]
 requires = ["setuptools>=43.0.0", "wheel"]
