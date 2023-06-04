@@ -13,8 +13,8 @@ class PDLRewriteFuzzMain(xDSLOptMain):
     def run(self):
         pattern = generate_random_pdl_rewrite()
         module = ModuleOp([pattern])
-        contents = self.output_resulting_program(module)
-        self.print_to_output_stream(contents)
+        output_stream = self.prepare_output()
+        output_stream.write(self.output_resulting_program(module))
 
 
 def main():

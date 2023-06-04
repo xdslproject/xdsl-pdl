@@ -20,6 +20,7 @@ from xdsl.dialects.pdl import (
     RewriteOp,
     TypeOp,
 )
+from xdsl.printer import Printer
 
 
 @dataclass

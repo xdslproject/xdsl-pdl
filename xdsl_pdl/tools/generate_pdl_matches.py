@@ -97,9 +97,10 @@ class PDLMatchFuzzMain(xDSLOptMain):
             pattern = generate_random_pdl_rewrite()
             module = ModuleOp([pattern])
         else:
-            modules = self.parse_input()
-            assert len(modules) == 1
-            module = modules[0]
+            chunks, extension = self.prepare_input()
+            assert len(chunks) == 1
+            module = self.parse_chunk(chunks[0], extension)
+            assert module is not None
 
         for _ in range(0, 10):
             fuzz_pdl_matches(module, self.ctx, self.args.mlir_executable)

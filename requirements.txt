@@ -1,3 +1,4 @@
-xdsl==0.13.0
+#xdsl==0.13.0
+xdsl @ git+https://github.com/xdslproject/xdsl@fehr/fix-region-clone-into
 pre-commit
 black
