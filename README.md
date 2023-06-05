@@ -15,4 +15,4 @@ pip install -e .
 
 * `analyze-pdl-rewrite`: Analyze the given PDL rewrite. If no rewrites are provided, generate a random one.
 * `generate-pdl-rewrite`: Generate a random PDL rewrite.
-* `generate-pdl-matches`: Generate random PDL matches for a given PDL rewrite.
+* `generate-pdl-matches`: Generate random PDL matches for a given PDL rewrite, and check that the analysis and the MLIR output match.
