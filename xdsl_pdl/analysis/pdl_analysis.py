@@ -20,6 +20,7 @@ from xdsl.dialects.scf import Scf
 from xdsl.dialects.vector import Vector
 from xdsl.ir import MLContext, OpResult, Operation, SSAValue
 from xdsl.printer import Printer
+from io import StringIO
 
 
 def is_terminator(op: Operation | type[Operation]) -> bool:
@@ -43,7 +44,8 @@ warnings.simplefilter("ignore", category=PDLDebugWarning)
 
 
 def debug(msg: str):
-    warn(msg)
+    # warn(msg)
+    pass
 
 
 @dataclass()
@@ -184,13 +186,17 @@ class PDLAnalysis:
                 debug(
                     f"{abs(len(pattern_op.body.ops) - len(self.visited_ops))} Unreachable PDL ops in pattern!"
                 )
-                debug("Full pattern:")
-                printer = Printer()
+                stream = StringIO()
+                printer = Printer(stream=stream)
+                print("Full pattern:", file=stream)
                 printer.print_op(pattern_op)
+                print("", file=stream)
                 debug("Unreachable ops:")
                 for pdl_op in pattern_op.body.ops:
                     if pdl_op not in self.visited_ops:
                         printer.print_op(pdl_op)
+                        print("", file=stream)
+                debug(stream.getvalue())
 
         # Gather information about the rhs of the pattern
         self._analyze_pdl_rewrite_op(self.rewrite_op)
