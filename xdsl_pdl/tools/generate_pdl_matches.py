@@ -16,6 +16,7 @@ from xdsl.dialects.pdl import (
 from xdsl.printer import Printer
 from xdsl_pdl.analysis.pdl_analysis import PDLAnalysisFailed, pdl_analysis_pass
 from xdsl_pdl.analysis.mlir_analysis import (
+    MLIRFailure,
     analyze_with_mlir,
 )
 
@@ -49,8 +50,11 @@ def fuzz_pdl_matches(module: ModuleOp, ctx: MLContext, mlir_executable_path: str
         print("MLIR analysis failed")
         print("Failed program:")
         print(mlir_analysis.failed_program)
-        print("Error message:")
-        print(mlir_analysis.error_msg)
+        if isinstance(mlir_analysis, MLIRFailure):
+            print("Error message:")
+            print(mlir_analysis.error_msg)
+        else:
+            print("Infinite loop")
 
     if analysis_correct:
         if mlir_analysis is None:
