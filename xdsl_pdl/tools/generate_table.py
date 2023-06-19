@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import random
 
 from xdsl.ir import MLContext
 from xdsl.utils.diagnostic import Diagnostic
@@ -55,6 +56,7 @@ class GenerateTableMain(xDSLOptMain):
         arg_parser.add_argument("--mlir-executable", type=str, required=True)
 
     def run(self):
+        random.seed(42)
         values = [[0, 0], [0, 0]]
         failed_analyses = 0
         for i in range(1000):
