@@ -19,6 +19,11 @@ from xdsl_pdl.fuzzing.generate_pdl_matches import (
 
 
 @dataclass
+class MLIRInfiniteLoop(Exception):
+    failed_program: str
+
+
+@dataclass
 class MLIRFailure(Exception):
     failed_program: str
     error_msg: str
@@ -48,17 +53,21 @@ def run_with_mlir(
     module = ModuleOp([patterns_module, new_prog])
     printer.print_op(module)
 
-    res = subprocess.run(
-        [
-            mlir_executable_path,
-            "--mlir-print-op-generic",
-            "-allow-unregistered-dialect",
-            "--test-pdl-bytecode-pass",
-        ],
-        input=mlir_input.getvalue(),
-        text=True,
-        capture_output=True,
-    )
+    try:
+        res = subprocess.run(
+            [
+                mlir_executable_path,
+                "--mlir-print-op-generic",
+                "-allow-unregistered-dialect",
+                "--test-pdl-bytecode-pass",
+            ],
+            input=mlir_input.getvalue(),
+            text=True,
+            capture_output=True,
+            timeout=3,
+        )
+    except subprocess.TimeoutExpired:
+        raise MLIRInfiniteLoop(mlir_input.getvalue())
 
     if res.returncode != 0:
         raise MLIRFailure(mlir_input.getvalue(), res.stderr)
@@ -67,7 +76,7 @@ def run_with_mlir(
 
 def analyze_with_mlir(
     pattern: PatternOp, ctx: MLContext, mlir_executable_path: str
-) -> MLIRFailure | None:
+) -> MLIRFailure | MLIRInfiniteLoop | None:
     """
     Run the pattern on multiple examples with MLIR.
     If MLIR returns an error in any of the examples, returns the error.
@@ -85,5 +94,7 @@ def analyze_with_mlir(
                 program = TestOp.create(regions=[cloned_region])
                 run_with_mlir(program, pattern, mlir_executable_path)
     except MLIRFailure as e:
+        return e
+    except MLIRInfiniteLoop as e:
         return e
     return None

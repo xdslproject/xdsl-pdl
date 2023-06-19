@@ -17,6 +17,8 @@ from xdsl.dialects.pdl import (
 )
 from xdsl.dialects.builtin import IntegerAttr, IntegerType, StringAttr, i32
 
+from xdsl_pdl.pdltest import TestMatchOp, TestRewriteOp
+
 i16 = IntegerType(16)
 
 
@@ -29,13 +31,6 @@ class _FuzzerOptions:
     max_match_operations = 4
     min_rewrite_operations = 1
     max_rewrite_operations = 3
-    available_operations = ["test.op"]
-
-    @staticmethod
-    def get_random_operation_name():
-        return _FuzzerOptions.available_operations[
-            randrange(0, len(_FuzzerOptions.available_operations))
-        ]
 
 
 @dataclass
@@ -93,9 +88,7 @@ def _generate_random_matched_operation(ctx: _FuzzerContext) -> list[Operation]:
         results.append(new_type.result)
         new_ops.extend([new_type])
 
-    op_name = _FuzzerOptions.get_random_operation_name()
-
-    op = OperationOp(StringAttr(op_name), None, operands, None, results)
+    op = OperationOp(TestMatchOp.name, None, operands, None, results)
     new_ops.append(op)
     ctx.operations.append(op)
 
@@ -135,7 +128,6 @@ def _generate_random_rewrite_operation(ctx: _FuzzerContext) -> list[Operation]:
 
     # Create a new operation
     assert operation_choice == 3
-    op_name = _FuzzerOptions.get_random_operation_name()
     num_operands = randrange(
         _FuzzerOptions.min_operands, _FuzzerOptions.max_operands + 1
     )
@@ -155,7 +147,7 @@ def _generate_random_rewrite_operation(ctx: _FuzzerContext) -> list[Operation]:
         results.append(new_type.result)
         new_ops.extend([new_type])
 
-    op = OperationOp(StringAttr(op_name), None, operands, None, results)
+    op = OperationOp(StringAttr(TestRewriteOp.name), None, operands, None, results)
     ctx.operations.append(op)
     new_ops.append(op)
 

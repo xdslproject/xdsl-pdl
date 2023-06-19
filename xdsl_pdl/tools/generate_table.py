@@ -19,6 +19,7 @@ from xdsl_pdl.analysis.mlir_analysis import (
 )
 
 from xdsl_pdl.fuzzing.generate_pdl_rewrite import generate_random_pdl_rewrite
+from xdsl_pdl.pdltest import PDLTest
 
 
 def fuzz_pdl_matches(
@@ -45,18 +46,24 @@ def fuzz_pdl_matches(
 
 
 class GenerateTableMain(xDSLOptMain):
+    def register_all_dialects(self):
+        super().register_all_dialects()
+        self.ctx.register_dialect(PDLTest)
+
     def register_all_arguments(self, arg_parser: argparse.ArgumentParser):
         super().register_all_arguments(arg_parser)
         arg_parser.add_argument("--mlir-executable", type=str, required=True)
 
     def run(self):
         values = [[0, 0], [0, 0]]
+        failed_analyses = 0
         for i in range(1000):
             print(i)
             pattern = generate_random_pdl_rewrite()
             module = ModuleOp([pattern])
             test_res = fuzz_pdl_matches(module, self.ctx, self.args.mlir_executable)
             if test_res is None:
+                failed_analyses += 1
                 continue
             values[int(test_res[0])][int(test_res[1])] += 1
 
@@ -64,6 +71,7 @@ class GenerateTableMain(xDSLOptMain):
         print("Analysis failed, MLIR analysis succeeded: ", values[0][1])
         print("Analysis succeeded, MLIR analysis failed: ", values[1][0])
         print("Analysis succeeded, MLIR analysis succeeded: ", values[1][1])
+        print("PDL Analysis raised an exception: ", failed_analyses)
 
 
 def main():

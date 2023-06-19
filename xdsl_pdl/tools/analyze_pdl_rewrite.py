@@ -8,11 +8,16 @@ from xdsl.xdsl_opt_main import xDSLOptMain
 
 from xdsl_pdl.fuzzing.generate_pdl_rewrite import generate_random_pdl_rewrite
 from xdsl_pdl.analysis.pdl_analysis import PDLAnalysisFailed, pdl_analysis_pass
+from xdsl_pdl.pdltest import PDLTest
 
 
 class PDLAnalyzeRewrite(xDSLOptMain):
     def register_all_arguments(self, arg_parser: argparse.ArgumentParser):
         super().register_all_arguments(arg_parser)
+
+    def register_all_dialects(self):
+        super().register_all_dialects()
+        self.ctx.register_dialect(PDLTest)
 
     def run(self):
         if self.args.input_file is None:

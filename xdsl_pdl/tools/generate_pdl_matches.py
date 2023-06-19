@@ -20,6 +20,7 @@ from xdsl_pdl.analysis.mlir_analysis import (
 )
 
 from xdsl_pdl.fuzzing.generate_pdl_rewrite import generate_random_pdl_rewrite
+from xdsl_pdl.pdltest import PDLTest
 
 
 def fuzz_pdl_matches(module: ModuleOp, ctx: MLContext, mlir_executable_path: str):
@@ -67,6 +68,10 @@ class PDLMatchFuzzMain(xDSLOptMain):
     def register_all_arguments(self, arg_parser: argparse.ArgumentParser):
         super().register_all_arguments(arg_parser)
         arg_parser.add_argument("--mlir-executable", type=str, required=True)
+
+    def register_all_dialects(self):
+        super().register_all_dialects()
+        self.ctx.register_dialect(PDLTest)
 
     def run(self):
         if self.args.input_file is None:
