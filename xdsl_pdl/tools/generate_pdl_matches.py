@@ -4,8 +4,6 @@ from __future__ import annotations
 
 import argparse
 
-from random import randrange
-
 from xdsl.ir import MLContext
 from xdsl.utils.diagnostic import Diagnostic
 from xdsl.xdsl_opt_main import xDSLOptMain
