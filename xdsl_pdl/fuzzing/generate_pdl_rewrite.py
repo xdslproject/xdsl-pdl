@@ -29,7 +29,7 @@ class _FuzzerOptions:
     max_match_operations = 4
     min_rewrite_operations = 1
     max_rewrite_operations = 3
-    available_operations = ["test.op1", "test.op2", "test.op3"]
+    available_operations = ["test.op"]
 
     @staticmethod
     def get_random_operation_name():
