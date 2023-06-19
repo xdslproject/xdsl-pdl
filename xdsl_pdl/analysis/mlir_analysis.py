@@ -72,14 +72,17 @@ def analyze_with_mlir(
     Run the pattern on multiple examples with MLIR.
     If MLIR returns an error in any of the examples, returns the error.
     """
-    region, ops = pdl_to_operations(pattern, ctx)
+    pattern = pattern.clone()
     all_dags = generate_all_dags(5)
     try:
         for _ in range(0, 10):
+            region, ops = pdl_to_operations(pattern, ctx)
             dag = all_dags[randrange(0, len(all_dags))]
             create_dag_in_region(region, dag, ctx)
             for populated_region in put_operations_in_region(dag, region, ops):
-                program = TestOp.create(regions=[populated_region])
+                cloned_region = Region()
+                populated_region.clone_into(cloned_region)
+                program = TestOp.create(regions=[cloned_region])
                 run_with_mlir(program, pattern, mlir_executable_path)
     except MLIRFailure as e:
         return e
