@@ -15,6 +15,7 @@ from xdsl.dialects.builtin import (
 from xdsl.dialects.pdl import (
     PatternOp,
 )
+from xdsl.dialects.test import TestOp
 from xdsl.printer import Printer
 from xdsl_pdl.analysis.pdl_analysis import PDLAnalysisFailed, pdl_analysis_pass
 from xdsl_pdl.analysis.run_with_mlir import run_with_mlir, MLIRFailure
@@ -26,9 +27,6 @@ from xdsl_pdl.fuzzing.generate_pdl_matches import (
     put_operations_in_region,
 )
 from xdsl_pdl.fuzzing.generate_pdl_rewrite import generate_random_pdl_rewrite
-
-
-counter = 0
 
 
 def fuzz_pdl_matches(module: ModuleOp, ctx: MLContext, mlir_executable_path: str):
@@ -57,9 +55,8 @@ def fuzz_pdl_matches(module: ModuleOp, ctx: MLContext, mlir_executable_path: str
             dag = all_dags[randrange(0, len(all_dags))]
             create_dag_in_region(region, dag, ctx)
             for populated_region in put_operations_in_region(dag, region, ops):
-                run_with_mlir(
-                    populated_region, ctx, mlir_executable_path, module.ops.first
-                )
+                program = TestOp.create(regions=[populated_region])
+                run_with_mlir(program, module.ops.first, mlir_executable_path)
     except MLIRFailure as e:
         print("Failed program:")
         print(e.failed_program)

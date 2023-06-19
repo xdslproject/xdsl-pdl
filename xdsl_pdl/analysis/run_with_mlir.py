@@ -2,7 +2,7 @@ import subprocess
 from io import StringIO
 from dataclasses import dataclass
 
-from xdsl.ir import Region, MLContext, Block
+from xdsl.ir import Operation, Region, Block
 from xdsl.printer import Printer
 
 from xdsl.dialects.builtin import ModuleOp, StringAttr
@@ -16,27 +16,27 @@ class MLIRFailure(Exception):
 
 
 def run_with_mlir(
-    region: Region, ctx: MLContext, mlir_executable_path: str, pattern: PatternOp
-):
+    program: Operation, pattern: PatternOp, mlir_executable_path: str
+) -> str:
+    """
+    Execute the pattern rewrite on the given program using MLIR.
+    Return `MLIRFailure` if the rewrite fails, otherwise return the MLIR output.
+    """
     mlir_input = StringIO()
     printer = Printer(stream=mlir_input)
-    new_region = Region()
-    region.clone_into(new_region)
-    test_op = ctx.get_op("test.op", allow_unregistered=True).create(
-        regions=[new_region]
-    )
+    new_prog = program.clone()
 
     patterns_module = ModuleOp.create(
         attributes={"sym_name": StringAttr("patterns")},
         regions=[Region([Block()])],
     )
     patterns_module.regions[0].blocks[0].add_op(pattern.clone())
-    ir_module = ModuleOp.create(
-        attributes={"sym_name": StringAttr("ir")},
-        regions=[Region([Block()])],
-    )
-    ir_module.regions[0].blocks[0].add_op(test_op)
-    module = ModuleOp([patterns_module, ir_module])
+    if not isinstance(new_prog, ModuleOp):
+        new_prog = ModuleOp.create(
+            attributes={"sym_name": StringAttr("ir")},
+            regions=[Region([Block([new_prog])])],
+        )
+    module = ModuleOp([patterns_module, new_prog])
     printer.print_op(module)
 
     res = subprocess.run(
@@ -53,7 +53,4 @@ def run_with_mlir(
 
     if res.returncode != 0:
         raise MLIRFailure(mlir_input.getvalue(), res.stderr)
-    print(res.stdout)
-    global counter
-    print(counter)
-    counter += 1
+    return res.stdout
