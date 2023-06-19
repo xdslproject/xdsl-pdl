@@ -15,21 +15,12 @@ from xdsl.dialects.builtin import (
 from xdsl.dialects.pdl import (
     PatternOp,
 )
-from xdsl.dialects.test import TestOp
 from xdsl.printer import Printer
 from xdsl_pdl.analysis.pdl_analysis import PDLAnalysisFailed, pdl_analysis_pass
 from xdsl_pdl.analysis.mlir_analysis import (
     analyze_with_mlir,
-    run_with_mlir,
-    MLIRFailure,
 )
 
-from xdsl_pdl.fuzzing.generate_pdl_matches import (
-    create_dag_in_region,
-    generate_all_dags,
-    pdl_to_operations,
-    put_operations_in_region,
-)
 from xdsl_pdl.fuzzing.generate_pdl_rewrite import generate_random_pdl_rewrite
 
 
