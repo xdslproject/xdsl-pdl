@@ -1,12 +1,21 @@
 import subprocess
 from io import StringIO
 from dataclasses import dataclass
+from random import randrange
 
-from xdsl.ir import Operation, Region, Block
+from xdsl.ir import MLContext, Operation, Region, Block
 from xdsl.printer import Printer
 
 from xdsl.dialects.builtin import ModuleOp, StringAttr
 from xdsl.dialects.pdl import PatternOp
+from xdsl.dialects.test import TestOp
+
+from xdsl_pdl.fuzzing.generate_pdl_matches import (
+    create_dag_in_region,
+    generate_all_dags,
+    pdl_to_operations,
+    put_operations_in_region,
+)
 
 
 @dataclass
@@ -54,3 +63,24 @@ def run_with_mlir(
     if res.returncode != 0:
         raise MLIRFailure(mlir_input.getvalue(), res.stderr)
     return res.stdout
+
+
+def analyze_with_mlir(
+    pattern: PatternOp, ctx: MLContext, mlir_executable_path: str
+) -> MLIRFailure | None:
+    """
+    Run the pattern on multiple examples with MLIR.
+    If MLIR returns an error in any of the examples, returns the error.
+    """
+    region, ops = pdl_to_operations(pattern, ctx)
+    all_dags = generate_all_dags(5)
+    try:
+        for _ in range(0, 10):
+            dag = all_dags[randrange(0, len(all_dags))]
+            create_dag_in_region(region, dag, ctx)
+            for populated_region in put_operations_in_region(dag, region, ops):
+                program = TestOp.create(regions=[populated_region])
+                run_with_mlir(program, pattern, mlir_executable_path)
+    except MLIRFailure as e:
+        return e
+    return None

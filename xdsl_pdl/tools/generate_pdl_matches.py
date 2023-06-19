@@ -18,7 +18,11 @@ from xdsl.dialects.pdl import (
 from xdsl.dialects.test import TestOp
 from xdsl.printer import Printer
 from xdsl_pdl.analysis.pdl_analysis import PDLAnalysisFailed, pdl_analysis_pass
-from xdsl_pdl.analysis.run_with_mlir import run_with_mlir, MLIRFailure
+from xdsl_pdl.analysis.mlir_analysis import (
+    analyze_with_mlir,
+    run_with_mlir,
+    MLIRFailure,
+)
 
 from xdsl_pdl.fuzzing.generate_pdl_matches import (
     create_dag_in_region,
@@ -48,24 +52,26 @@ def fuzz_pdl_matches(module: ModuleOp, ctx: MLContext, mlir_executable_path: str
     printer = Printer(diagnostic=diagnostic)
     printer.print_op(module)
 
-    region, ops = pdl_to_operations(module.ops.first, ctx)
-    all_dags = generate_all_dags(5)
-    try:
-        for _ in range(0, 10):
-            dag = all_dags[randrange(0, len(all_dags))]
-            create_dag_in_region(region, dag, ctx)
-            for populated_region in put_operations_in_region(dag, region, ops):
-                program = TestOp.create(regions=[populated_region])
-                run_with_mlir(program, module.ops.first, mlir_executable_path)
-    except MLIRFailure as e:
+    mlir_analysis = analyze_with_mlir(module.ops.first, ctx, mlir_executable_path)
+    if mlir_analysis is None:
+        print("MLIR analysis succeeded")
+    else:
+        print("MLIR analysis failed")
         print("Failed program:")
-        print(e.failed_program)
+        print(mlir_analysis.failed_program)
         print("Error message:")
-        print(e.error_msg)
-        if analysis_correct:
-            print("Unexpected MLIR failure, analysis did not report it")
+        print(mlir_analysis.error_msg)
+
+    if analysis_correct:
+        if mlir_analysis is None:
+            print("GOOD: Analysis succeeded, MLIR analysis succeeded")
         else:
-            print("Expected MLIR failure, analysis did report it")
+            print("BAD: Analysis succeeded, MLIR analysis failed")
+    else:
+        if mlir_analysis is None:
+            print("BAD: Analysis failed, MLIR analysis succeeded")
+        else:
+            print("GOOD: Analysis failed, MLIR analysis failed")
 
 
 class PDLMatchFuzzMain(xDSLOptMain):
