@@ -220,9 +220,7 @@ def create_dag_in_region(region: Region, dag: SingleEntryDAGStructure, ctx: MLCo
         region.add_block(block)
         blocks.append(block)
 
-    region.blocks[0].add_op(
-        ctx.get_op("test.entry").create(successors=[blocks[0]])
-    )
+    region.blocks[0].add_op(ctx.get_op("test.entry").create(successors=[blocks[0]]))
 
     for i, adjency_set in enumerate(dag.get_adjency_list()):
         block = blocks[i]
