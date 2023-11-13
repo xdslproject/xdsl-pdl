@@ -7,7 +7,11 @@ from xdsl.utils.diagnostic import Diagnostic
 from xdsl.xdsl_opt_main import xDSLOptMain
 
 from xdsl_pdl.fuzzing.generate_pdl_rewrite import generate_random_pdl_rewrite
-from xdsl_pdl.analysis.pdl_analysis import PDLAnalysisFailed, pdl_analysis_pass
+from xdsl_pdl.analysis.pdl_analysis import (
+    PDLAnalysisAborted,
+    PDLAnalysisException,
+    pdl_analysis_pass,
+)
 from xdsl_pdl.pdltest import PDLTest
 
 
@@ -32,8 +36,11 @@ class PDLAnalyzeRewrite(xDSLOptMain):
         diagnostic = Diagnostic()
         try:
             pdl_analysis_pass(self.ctx, module)
-        except PDLAnalysisFailed as e:
+        except PDLAnalysisAborted as e:
             diagnostic.add_message(e.op, e.msg)
+        except PDLAnalysisException as e:
+            diagnostic.add_message(e.op, e.msg)
+            print("PDL analysis terminated unexpectedly")
         else:
             print("PDL analysis succeeded")
         printer = Printer(diagnostic=diagnostic)
@@ -42,6 +49,7 @@ class PDLAnalyzeRewrite(xDSLOptMain):
 
 def main():
     PDLAnalyzeRewrite().run()
+
 
 if "__main__" == __name__:
     main()

@@ -14,7 +14,7 @@ from xdsl.dialects.pdl import (
     PatternOp,
 )
 from xdsl.printer import Printer
-from xdsl_pdl.analysis.pdl_analysis import PDLAnalysisFailed, pdl_analysis_pass
+from xdsl_pdl.analysis.pdl_analysis import PDLAnalysisAborted, PDLAnalysisException, pdl_analysis_pass
 from xdsl_pdl.analysis.mlir_analysis import (
     MLIRFailure,
     analyze_with_mlir,
@@ -34,10 +34,14 @@ def fuzz_pdl_matches(module: ModuleOp, ctx: MLContext, mlir_executable_path: str
     diagnostic = Diagnostic()
     try:
         pdl_analysis_pass(ctx, module)
-    except PDLAnalysisFailed as e:
+    except PDLAnalysisAborted as e:
         diagnostic.add_message(e.op, e.msg)
         analysis_correct = False
-        print("PDL analysis failed")
+        print("PDL analysis found error")
+    except PDLAnalysisException as e:
+        diagnostic.add_message(e.op, e.msg)
+        analysis_correct = False
+        print("PDL analysis found terminated unexpectedly")
     else:
         print("PDL analysis succeeded")
     printer = Printer(diagnostic=diagnostic)

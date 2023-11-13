@@ -34,7 +34,13 @@ class PDLDebugWarning(Warning):
 
 
 @dataclass
-class PDLAnalysisFailed(Exception):
+class PDLAnalysisAborted(Exception):
+    op: Operation
+    msg: str
+
+
+@dataclass
+class PDLAnalysisException(Exception):
     op: Operation
     msg: str
 
@@ -166,14 +172,19 @@ class PDLAnalysis:
         if isinstance(pattern_op.body.ops.last, pdl.RewriteOp):
             self.rewrite_op: pdl.RewriteOp = pattern_op.body.ops.last
         else:
-            raise Exception("pdl.PatternOp must have a pdl.RewriteOp as terminator!")
+            raise PDLAnalysisAborted(
+                self.pattern_op,
+                "pdl.PatternOp must have a pdl.RewriteOp as terminator!",
+            )
 
         for lhs_op in reversed(list(pattern_op.body.ops)):
             if isinstance(lhs_op, pdl.OperationOp):
                 self.root_op: pdl.OperationOp = lhs_op
                 break
         if self.root_op is None:  # type: ignore
-            raise Exception("pdl.PatternOp must have a pdl.OperationOp as root!")
+            raise PDLAnalysisAborted(
+                self.pattern_op, "pdl.PatternOp must have a pdl.OperationOp as root!"
+            )
 
         # Gather information about the matching part pattern
         self._trace_matching_op(self.root_op)
@@ -249,8 +260,9 @@ class PDLAnalysis:
                             f"Terminator might be replaced by non-terminator: {terminator}!"
                         )
                 else:
-                    raise Exception(
-                        "We currently can't handle pdl.Replace with a list of SSAValues as replacement!"
+                    raise PDLAnalysisException(
+                        self.pattern_op,
+                        "We currently can't handle pdl.Replace with a list of SSAValues as replacement!",
                     )
 
         debug("Terminator Analysis finished.")
@@ -278,7 +290,11 @@ class PDLAnalysis:
                     return
 
                 if not (analyzed_op := current_scope.get_owner(erased_op)):
-                    raise Exception("Only ops can be erased, PDL rewrite malformed!")
+                    self._add_analysis_result_to_op(
+                        self.rewrite_op,
+                        "Only ops can be erased, PDL rewrite malformed!",
+                    )
+                    return
 
                 # check whether erased op is still in use
                 for result in analyzed_op.op_results:
@@ -298,8 +314,8 @@ class PDLAnalysis:
             if isinstance(rhs_op, pdl.OperationOp):
                 # check whether operands are in scope
                 if not (root_analysis := self.get_analysis(self.root_op)):
-                    raise Exception(
-                        "Root op not analyzed, inconsistent analysis state!"
+                    raise PDLAnalysisException(
+                        rhs_op, "Root op not analyzed, inconsistent analysis state!"
                     )
                 for operand in rhs_op.operand_values:
                     if not current_scope.is_in_scope(operand):
@@ -325,8 +341,9 @@ class PDLAnalysis:
                 if not isinstance(rhs_op.parent_, OpResult) or not isinstance(
                     rhs_op.parent_.op, pdl.OperationOp
                 ):
-                    raise Exception(
-                        "pdl.ResultOp must have the result of pdl.OperationOp as operand!"
+                    raise PDLAnalysisException(
+                        rhs_op,
+                        "pdl.ResultOp must have the result of pdl.OperationOp as operand!",
                     )
 
                 if op_analysis := self.get_analysis(rhs_op.parent_.op):
@@ -351,8 +368,9 @@ class PDLAnalysis:
                         return
                 elif repl_vals := replace_op.repl_values:
                     if not isinstance(replace_op.op_value, OpResult):
-                        raise Exception(
-                            "pdl.ReplaceOp must have the result of pdl.OperationOp as operand!"
+                        raise PDLAnalysisException(
+                            replace_op,
+                            "pdl.ReplaceOp must have the result of pdl.OperationOp as operand!",
                         )
                     if replace_op.op_value.op.results == repl_vals:
                         self._add_analysis_result_to_op(
@@ -380,8 +398,9 @@ class PDLAnalysis:
         for operand in pdl_operation_op.operands:
             # operands of PDL ops are always OpResults
             if not isinstance(operand, OpResult):
-                raise Exception(
-                    "Operands of PDL matching ops are always OpResults! The IR is inconsistent here!"
+                raise PDLAnalysisException(
+                    pdl_operation_op,
+                    "Operands of PDL matching ops are always OpResults! The IR is inconsistent here!",
                 )
             if analyzed_operand := self._trace_matching_op(operand.op):
                 analyzed_operands.append(analyzed_operand)
@@ -417,8 +436,9 @@ class PDLAnalysis:
             if not isinstance(used_op_result, OpResult) or not isinstance(
                 used_op_result.op, pdl.OperationOp
             ):
-                raise Exception(
-                    "pdl.ResultOp must have the result of pdl.OperationOp as operand!"
+                raise PDLAnalysisException(
+                    pdl_op,
+                    "pdl.ResultOp must have the result of pdl.OperationOp as operand!",
                 )
             used_op: pdl.OperationOp = used_op_result.op
             self.visited_ops.add(pdl_op)
@@ -457,8 +477,9 @@ class PDLAnalysis:
             if not isinstance(used_op_result, OpResult) or not isinstance(
                 used_op_result.op, pdl.OperationOp
             ):
-                raise Exception(
-                    "pdl.ResultOp must have the result of pdl.OperationOp as operand!"
+                raise PDLAnalysisException(
+                    rhs_op,
+                    "pdl.ResultOp must have the result of pdl.OperationOp as operand!",
                 )
             used_op: pdl.OperationOp = used_op_result.op
             self.visited_ops.add(rhs_op)
@@ -476,18 +497,24 @@ class PDLAnalysis:
                     for operand in rhs_op.operands
                 ]
             ):
-                raise Exception("Replacement must be a single op for now!")
+                raise PDLAnalysisException(
+                    rhs_op, "Replacement must be a single op for now!"
+                )
             assert isinstance(rhs_op.op_value, OpResult)
             assert isinstance(rhs_op.op_value.op, pdl.OperationOp)
             if (analyzed_op := self.get_analysis(rhs_op.op_value.op)) is None:
-                raise Exception("Unknown pdl.Operation to be replaced!")
+                raise PDLAnalysisException(
+                    rhs_op, "Unknown pdl.Operation to be replaced!"
+                )
             if rhs_op.repl_operation:
                 assert isinstance(rhs_op.repl_operation, OpResult)
                 assert isinstance(rhs_op.repl_operation.op, pdl.OperationOp)
                 if (
                     analyzed_repl_op := self.get_analysis(rhs_op.repl_operation.op)
                 ) is None:
-                    raise Exception("Unknown pdl.Operation to be replaced!")
+                    raise PDLAnalysisException(
+                        rhs_op, "Unknown pdl.Operation to be replaced!"
+                    )
                 analyzed_op.replaced_by = analyzed_repl_op
             elif rhs_op.repl_values:
                 analyzed_op.replaced_by = rhs_op.repl_values
@@ -495,10 +522,12 @@ class PDLAnalysis:
             assert isinstance(rhs_op.op_value, OpResult)
             assert isinstance(rhs_op.op_value.op, pdl.OperationOp)
             if (analyzed_op := self.get_analysis(rhs_op.op_value.op)) is None:
-                raise Exception("Unknown pdl.Operation to be erased!")
+                raise PDLAnalysisException(
+                    rhs_op, "Unknown pdl.Operation to be erased!"
+                )
             analyzed_op.erased_by = rhs_op
         else:
-            raise Exception(f"Unsupported PDL op: {rhs_op.name}")
+            raise PDLAnalysisException(rhs_op, f"Unsupported PDL op: {rhs_op.name}")
         self.visited_ops.add(rhs_op)
 
     def _trace_generate_new_op(
@@ -523,8 +552,9 @@ class PDLAnalysis:
         for operand in new_op_op.operands:
             # operands of PDL matching ops are always OpResults
             if not isinstance(operand, OpResult):
-                raise Exception(
-                    "Operands of PDL matching ops are always OpResults! The IR is inconsistent here!"
+                raise PDLAnalysisException(
+                    new_op_op,
+                    "Operands of PDL matching ops are always OpResults! The IR is inconsistent here!",
                 )
             if analyzed_operand := self._analyze_rhs_op(operand.op):
                 analyzed_operands.append(analyzed_operand)
@@ -544,7 +574,7 @@ class PDLAnalysis:
 
     @staticmethod
     def _add_analysis_result_to_op(op: Operation, result: str):
-        raise PDLAnalysisFailed(op, result)
+        raise PDLAnalysisAborted(op, result)
         # analysis_results: list[StringAttr] = []
         # if "pdl_analysis" in op.attributes and isa(
         #     (tmp := op.attributes["pdl_analysis"]), AnyArrayAttr

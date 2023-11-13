@@ -14,7 +14,7 @@ from xdsl.dialects.builtin import (
 from xdsl.dialects.pdl import (
     PatternOp,
 )
-from xdsl_pdl.analysis.pdl_analysis import PDLAnalysisFailed, pdl_analysis_pass
+from xdsl_pdl.analysis.pdl_analysis import PDLAnalysisAborted, pdl_analysis_pass
 from xdsl_pdl.analysis.mlir_analysis import (
     analyze_with_mlir,
 )
@@ -37,7 +37,7 @@ def fuzz_pdl_matches(
     analysis_correct = True
     try:
         pdl_analysis_pass(ctx, module)
-    except PDLAnalysisFailed:
+    except PDLAnalysisAborted:
         analysis_correct = False
     except Exception:
         return None
