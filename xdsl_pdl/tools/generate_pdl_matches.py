@@ -75,7 +75,7 @@ class PDLMatchFuzzMain(xDSLOptMain):
 
     def register_all_dialects(self):
         super().register_all_dialects()
-        self.ctx.register_dialect(PDLTest)
+        self.ctx.load_dialect(PDLTest)
 
     def run(self):
         if self.args.input_file is None:
@@ -92,3 +92,6 @@ class PDLMatchFuzzMain(xDSLOptMain):
 
 def main():
     PDLMatchFuzzMain().run()
+
+if "__main__" == __name__:
+    main()

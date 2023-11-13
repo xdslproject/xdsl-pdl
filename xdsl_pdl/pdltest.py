@@ -33,4 +33,4 @@ class TestRewriteOp(IRDLOperation):
     regs: VarRegion = var_region_def()
 
 
-PDLTest = Dialect([TestMatchOp, TestRewriteOp])
+PDLTest = Dialect("PDLTest", [TestMatchOp, TestRewriteOp])

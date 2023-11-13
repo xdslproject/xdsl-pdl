@@ -1,4 +1,4 @@
-#xdsl==0.13.0
-xdsl @ git+https://github.com/xdslproject/xdsl@a0cfd8a
+#xdsl==0.15.0
+xdsl @ git+https://github.com/xdslproject/xdsl@523f2a6
 pre-commit
 black

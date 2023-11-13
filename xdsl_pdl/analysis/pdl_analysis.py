@@ -368,7 +368,7 @@ class PDLAnalysis:
         Gather information about a pdl.OperationOp and its operands in
         the matching part of a pdl.PatternOp.
         """
-        # get matched operation type6
+        # get matched operation type
         if (name := pdl_operation_op.opName) and self._get_op_named(name.data):
             op_type = self._get_op_named(name.data)
             assert op_type is not None
@@ -472,7 +472,7 @@ class PDLAnalysis:
             # For now only handle the case where the replacement is a single op
             if len(rhs_op.operands) != 2 or not all(
                 [
-                    isinstance(operand.typ, pdl.OperationType)
+                    isinstance(operand.type, pdl.OperationType)
                     for operand in rhs_op.operands
                 ]
             ):

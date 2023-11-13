@@ -5,7 +5,7 @@ description = "PDL experiments in xDSL"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
-  "xdsl>=0.13, <0.14",
+  "xdsl>=0.15, <0.15",
 ]
 
 [project.scripts]
