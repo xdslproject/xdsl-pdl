@@ -26,5 +26,6 @@ class PDLRewriteFuzzMain(xDSLOptMain):
 def main():
     PDLRewriteFuzzMain().run()
 
+
 if "__main__" == __name__:
     main()

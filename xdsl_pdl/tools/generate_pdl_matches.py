@@ -14,7 +14,11 @@ from xdsl.dialects.pdl import (
     PatternOp,
 )
 from xdsl.printer import Printer
-from xdsl_pdl.analysis.pdl_analysis import PDLAnalysisAborted, PDLAnalysisException, pdl_analysis_pass
+from xdsl_pdl.analysis.pdl_analysis import (
+    PDLAnalysisAborted,
+    PDLAnalysisException,
+    pdl_analysis_pass,
+)
 from xdsl_pdl.analysis.mlir_analysis import (
     MLIRFailure,
     analyze_with_mlir,
@@ -96,6 +100,7 @@ class PDLMatchFuzzMain(xDSLOptMain):
 
 def main():
     PDLMatchFuzzMain().run()
+
 
 if "__main__" == __name__:
     main()
