@@ -119,11 +119,11 @@ class PDLSynthContext:
     def possible_values_of_type(self, type: Attribute) -> list[SSAValue]:
         values: list[SSAValue] = []
         for value in self.values.values():
-            if value.typ == type:
+            if value.type == type:
                 values.append(value)
         for op in self.ops.values():
             for result in op.results:
-                if result.typ == type:
+                if result.type == type:
                     values.append(result)
         return values
 
@@ -158,7 +158,7 @@ def pdl_to_operations(
             possible_values = pdl_context.possible_values_of_type(operand_type)
             region_args = region.blocks[0].args
             possible_values.extend(
-                [arg for arg in region_args if arg.typ == operand_type]
+                [arg for arg in region_args if arg.type == operand_type]
             )
             choice = randrange(0, len(possible_values) + 1)
             if choice == len(possible_values):
@@ -195,11 +195,11 @@ def pdl_to_operations(
             operands = [pdl_context.values[operand] for operand in op.operand_values]
             result_types = [pdl_context.types[types] for types in op.type_values]
             if op.opName is None:
-                op_def = ctx.get_op("unknown", allow_unregistered=True)
+                op_def = ctx.get_op("unknown")
             else:
                 op_def = ctx.get_optional_op(op.opName.data)
                 if op_def is None:
-                    op_def = ctx.get_op(op.opName.data, allow_unregistered=True)
+                    op_def = ctx.get_op(op.opName.data)
             new_op = op_def.create(
                 operands=operands, attributes=attributes, result_types=result_types
             )
@@ -221,13 +221,13 @@ def create_dag_in_region(region: Region, dag: SingleEntryDAGStructure, ctx: MLCo
         blocks.append(block)
 
     region.blocks[0].add_op(
-        ctx.get_op("test.entry", allow_unregistered=True).create(successors=[blocks[0]])
+        ctx.get_op("test.entry").create(successors=[blocks[0]])
     )
 
     for i, adjency_set in enumerate(dag.get_adjency_list()):
         block = blocks[i]
         successors = [blocks[j] for j in adjency_set]
-        branch_op = ctx.get_op("test.branch", allow_unregistered=True)
+        branch_op = ctx.get_op("test.branch")
         block.add_op(branch_op.create(successors=successors))
 
 

@@ -49,7 +49,7 @@ def fuzz_pdl_matches(
 class GenerateTableMain(xDSLOptMain):
     def register_all_dialects(self):
         super().register_all_dialects()
-        self.ctx.register_dialect(PDLTest)
+        self.ctx.load_dialect(PDLTest)
 
     def register_all_arguments(self, arg_parser: argparse.ArgumentParser):
         super().register_all_arguments(arg_parser)

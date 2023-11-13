@@ -77,6 +77,10 @@ def fuzz_pdl_matches(module: ModuleOp, ctx: MLContext, mlir_executable_path: str
 
 
 class PDLMatchFuzzMain(xDSLOptMain):
+    def __init__(self):
+        super().__init__()
+        self.ctx.allow_unregistered = True
+
     def register_all_arguments(self, arg_parser: argparse.ArgumentParser):
         super().register_all_arguments(arg_parser)
         arg_parser.add_argument("--mlir-executable", type=str, required=True)
