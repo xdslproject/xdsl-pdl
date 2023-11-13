@@ -2,7 +2,6 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import NamedTuple, Type
 import warnings
-from warnings import warn
 from xdsl.dialects import pdl
 from xdsl.dialects.affine import Affine
 from xdsl.dialects.arith import Arith
@@ -605,20 +604,20 @@ if __name__ == "__main__":
     from xdsl.dialects.pdl import PDL
 
     ctx = MLContext()
-    ctx.register_dialect(Builtin)
-    ctx.register_dialect(Func)
-    ctx.register_dialect(Arith)
-    ctx.register_dialect(MemRef)
-    ctx.register_dialect(Affine)
-    ctx.register_dialect(Scf)
-    ctx.register_dialect(Cf)
-    ctx.register_dialect(CMath)
-    ctx.register_dialect(IRDL)
-    ctx.register_dialect(LLVM)
-    ctx.register_dialect(Vector)
-    ctx.register_dialect(MPI)
-    ctx.register_dialect(GPU)
-    ctx.register_dialect(PDL)
+    ctx.load_dialect(Builtin)
+    ctx.load_dialect(Func)
+    ctx.load_dialect(Arith)
+    ctx.load_dialect(MemRef)
+    ctx.load_dialect(Affine)
+    ctx.load_dialect(Scf)
+    ctx.load_dialect(Cf)
+    ctx.load_dialect(CMath)
+    ctx.load_dialect(IRDL)
+    ctx.load_dialect(LLVM)
+    ctx.load_dialect(Vector)
+    ctx.load_dialect(MPI)
+    ctx.load_dialect(GPU)
+    ctx.load_dialect(PDL)
 
     #     prog = """
     #     "builtin.module"() ({
