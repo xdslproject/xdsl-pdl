@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import random
+from tabulate import tabulate
 
 from xdsl.ir import MLContext
 from xdsl.xdsl_opt_main import xDSLOptMain
@@ -78,6 +79,53 @@ class GenerateTableMain(xDSLOptMain):
         print("Analysis succeeded, MLIR analysis succeeded: ", values[1][1])
         print("PDL Analysis raised an exception: ", failed_analyses)
 
+        print_results(values[0][0], values[0][1], values[1][0], values[1][1])
+
+
+def print_results(
+    s_fail_d_fail: int, s_fail_d_succ: int, s_succ_d_fail: int, s_succ_d_succ: int
+):
+    """
+    Prints the results of the analysis in a table, similar to the one
+    we plan to have in the paper.
+    """
+    static_success = s_succ_d_succ + s_succ_d_fail
+    static_fail = s_fail_d_succ + s_fail_d_fail
+    dynamic_success = s_succ_d_succ + s_fail_d_succ
+    dynamic_fail = s_fail_d_fail + s_fail_d_fail
+    total = s_fail_d_fail + s_fail_d_succ + s_succ_d_fail + s_succ_d_succ
+
+    table: str = tabulate(
+        headers=["", "Passes Dynamic Check", "Fails Dynamic Check", "Total"],
+        tabular_data=[
+            [
+                "Passes Static Check",
+                static_success / s_succ_d_succ,
+                static_success / s_succ_d_fail,
+                static_success,
+            ],
+            [
+                "Fails Static Check",
+                static_fail / s_fail_d_succ,
+                static_fail / s_fail_d_fail,
+                static_fail,
+            ],
+            [
+                "Total",
+                dynamic_success,
+                dynamic_fail,
+                total,
+            ],
+        ],
+        tablefmt="orgtbl",
+    )
+
+    print(f"\n{table}")
+
 
 def main():
     GenerateTableMain().run()
+
+
+if __name__ == "__main__":
+    main()
