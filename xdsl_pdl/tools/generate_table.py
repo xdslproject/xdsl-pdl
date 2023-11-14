@@ -6,7 +6,6 @@ import argparse
 import random
 
 from xdsl.ir import MLContext
-from xdsl.utils.diagnostic import Diagnostic
 from xdsl.xdsl_opt_main import xDSLOptMain
 from xdsl.dialects.builtin import (
     ModuleOp,
@@ -47,6 +46,10 @@ def fuzz_pdl_matches(
 
 
 class GenerateTableMain(xDSLOptMain):
+    def __init__(self):
+        super().__init__()
+        self.ctx.allow_unregistered = True
+
     def register_all_dialects(self):
         super().register_all_dialects()
         self.ctx.load_dialect(PDLTest)

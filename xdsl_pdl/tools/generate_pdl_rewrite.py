@@ -8,6 +8,10 @@ from xdsl_pdl.pdltest import PDLTest
 
 
 class PDLRewriteFuzzMain(xDSLOptMain):
+    def __init__(self):
+        super().__init__()
+        self.ctx.allow_unregistered = True
+
     def register_all_dialects(self):
         super().register_all_dialects()
         self.ctx.load_dialect(PDLTest)

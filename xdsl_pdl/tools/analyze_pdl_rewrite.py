@@ -16,6 +16,10 @@ from xdsl_pdl.pdltest import PDLTest
 
 
 class PDLAnalyzeRewrite(xDSLOptMain):
+    def __init__(self):
+        super().__init__()
+        self.ctx.allow_unregistered = True
+
     def register_all_arguments(self, arg_parser: argparse.ArgumentParser):
         super().register_all_arguments(arg_parser)
 
