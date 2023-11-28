@@ -489,34 +489,27 @@ class PDLAnalysis:
             debug(f"rhs: Found attribute: {rhs_op.name}")
         elif isinstance(rhs_op, pdl.ReplaceOp):
             debug(f"rhs: Found replacement: {rhs_op.name}")
-            # For now only handle the case where the replacement is a single op
-            if len(rhs_op.operands) != 2 or not all(
-                [
-                    isinstance(operand.type, pdl.OperationType)
-                    for operand in rhs_op.operands
-                ]
-            ):
-                raise PDLAnalysisException(
-                    rhs_op, "Replacement must be a single op for now!"
-                )
-            assert isinstance(rhs_op.op_value, OpResult)
-            assert isinstance(rhs_op.op_value.op, pdl.OperationOp)
-            if (analyzed_op := self.get_analysis(rhs_op.op_value.op)) is None:
+            # Get the operation that is going to be replaced
+            assert isinstance(rhs_op.op_value.owner, pdl.OperationOp)
+            if (analyzed_op := self.get_analysis(rhs_op.op_value.owner)) is None:
                 raise PDLAnalysisException(
                     rhs_op, "Unknown pdl.Operation to be replaced!"
                 )
+            # Replacing with an operation
             if rhs_op.repl_operation:
-                assert isinstance(rhs_op.repl_operation, OpResult)
-                assert isinstance(rhs_op.repl_operation.op, pdl.OperationOp)
+                assert isinstance(rhs_op.repl_operation.owner, pdl.OperationOp)
                 if (
-                    analyzed_repl_op := self.get_analysis(rhs_op.repl_operation.op)
+                    analyzed_repl_op := self.get_analysis(rhs_op.repl_operation.owner)
                 ) is None:
                     raise PDLAnalysisException(
                         rhs_op, "Unknown pdl.Operation to be replaced!"
                     )
                 analyzed_op.replaced_by = analyzed_repl_op
-            elif rhs_op.repl_values:
+
+            # Replacing with a list of SSAValues
+            else:
                 analyzed_op.replaced_by = rhs_op.repl_values
+
         elif isinstance(rhs_op, pdl.EraseOp):
             assert isinstance(rhs_op.op_value, OpResult)
             assert isinstance(rhs_op.op_value.op, pdl.OperationOp)
