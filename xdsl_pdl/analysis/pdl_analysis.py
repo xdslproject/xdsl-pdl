@@ -492,8 +492,9 @@ class PDLAnalysis:
             # Get the operation that is going to be replaced
             assert isinstance(rhs_op.op_value.owner, pdl.OperationOp)
             if (analyzed_op := self.get_analysis(rhs_op.op_value.owner)) is None:
-                raise PDLAnalysisException(
-                    rhs_op, "Unknown pdl.Operation to be replaced!"
+                raise PDLAnalysisAborted(
+                    rhs_op,
+                    "pdl.Operation to be replaced is not part of the matched DAG!",
                 )
             # Replacing with an operation
             if rhs_op.repl_operation:
@@ -501,8 +502,9 @@ class PDLAnalysis:
                 if (
                     analyzed_repl_op := self.get_analysis(rhs_op.repl_operation.owner)
                 ) is None:
-                    raise PDLAnalysisException(
-                        rhs_op, "Unknown pdl.Operation to be replaced!"
+                    raise PDLAnalysisAborted(
+                        rhs_op,
+                        "pdl.Operation used for replacement is not part of the matched DAG!",
                     )
                 analyzed_op.replaced_by = analyzed_repl_op
 
