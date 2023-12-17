@@ -159,7 +159,7 @@ def _generate_random_rewrite_operation(ctx: _FuzzerContext) -> list[Operation]:
     return new_ops
 
 
-def generate_random_pdl_rewrite() -> PatternOp:
+def generate_unverified_random_pdl_rewrite() -> PatternOp:
     """
     Generate a random match part of a `pdl.rewrite`.
     """
@@ -190,3 +190,13 @@ def generate_random_pdl_rewrite() -> PatternOp:
 
     body = Region([Block(matched_ops + [rewrite])])
     return PatternOp(1, None, body)
+
+def generate_random_pdl_rewrite() -> PatternOp:
+    while True:
+        pattern = generate_unverified_random_pdl_rewrite()
+        try:
+            pattern.verify()
+        except Exception:
+            continue
+        return pattern
+    
