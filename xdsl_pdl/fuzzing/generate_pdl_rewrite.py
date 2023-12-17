@@ -191,6 +191,7 @@ def generate_unverified_random_pdl_rewrite() -> PatternOp:
     body = Region([Block(matched_ops + [rewrite])])
     return PatternOp(1, None, body)
 
+
 def generate_random_pdl_rewrite() -> PatternOp:
     while True:
         pattern = generate_unverified_random_pdl_rewrite()
@@ -199,4 +200,3 @@ def generate_random_pdl_rewrite() -> PatternOp:
         except Exception:
             continue
         return pattern
-    
