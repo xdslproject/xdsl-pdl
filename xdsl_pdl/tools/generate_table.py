@@ -63,7 +63,7 @@ class GenerateTableMain(xDSLOptMain):
         random.seed(42)
         values = [[0, 0], [0, 0]]
         failed_analyses = 0
-        for i in range(1000):
+        for i in range(10000):
             print(i)
             pattern = generate_random_pdl_rewrite()
             module = ModuleOp([pattern])
@@ -73,10 +73,10 @@ class GenerateTableMain(xDSLOptMain):
                 continue
             values[int(test_res[0])][int(test_res[1])] += 1
 
-        print("Analysis failed, MLIR analysis failed: ", values[0][0])
-        print("Analysis failed, MLIR analysis succeeded: ", values[0][1])
-        print("Analysis succeeded, MLIR analysis failed: ", values[1][0])
-        print("Analysis succeeded, MLIR analysis succeeded: ", values[1][1])
+        print("Analysis failed, MLIR execution failed: ", values[0][0])
+        print("Analysis failed, MLIR execution succeeded: ", values[0][1])
+        print("Analysis succeeded, MLIR execution failed: ", values[1][0])
+        print("Analysis succeeded, MLIR execution succeeded: ", values[1][1])
         print("PDL Analysis raised an exception: ", failed_analyses)
 
         print_results(values[0][0], values[0][1], values[1][0], values[1][1])
@@ -92,7 +92,7 @@ def print_results(
     static_success = s_succ_d_succ + s_succ_d_fail
     static_fail = s_fail_d_succ + s_fail_d_fail
     dynamic_success = s_succ_d_succ + s_fail_d_succ
-    dynamic_fail = s_fail_d_fail + s_fail_d_fail
+    dynamic_fail = s_fail_d_fail + s_succ_d_fail
     total = s_fail_d_fail + s_fail_d_succ + s_succ_d_fail + s_succ_d_succ
 
     table: str = tabulate(
@@ -100,14 +100,14 @@ def print_results(
         tabular_data=[
             [
                 "Passes Static Check",
-                static_success / s_succ_d_succ,
-                static_success / s_succ_d_fail,
+                s_succ_d_succ / static_success,
+                s_succ_d_fail / static_success,
                 static_success,
             ],
             [
                 "Fails Static Check",
-                static_fail / s_fail_d_succ,
-                static_fail / s_fail_d_fail,
+                s_fail_d_succ / static_fail,
+                s_fail_d_fail / static_fail,
                 static_fail,
             ],
             [
