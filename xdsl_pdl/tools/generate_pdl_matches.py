@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import argparse
-from random import Random
+from random import randint, Random
 
 from xdsl.ir import MLContext
 from xdsl.utils.diagnostic import Diagnostic
@@ -29,7 +29,9 @@ from xdsl_pdl.fuzzing.generate_pdl_rewrite import generate_random_pdl_rewrite
 from xdsl_pdl.pdltest import PDLTest
 
 
-def fuzz_pdl_matches(module: ModuleOp, ctx: MLContext, mlir_executable_path: str):
+def fuzz_pdl_matches(
+    module: ModuleOp, ctx: MLContext, mlir_executable_path: str, seed: int
+):
     if not isinstance(module.ops.first, PatternOp):
         raise Exception("Expected a single toplevel pattern op")
 
@@ -53,7 +55,7 @@ def fuzz_pdl_matches(module: ModuleOp, ctx: MLContext, mlir_executable_path: str
     printer.print_op(module)
 
     mlir_analysis = analyze_with_mlir(
-        module.ops.first, ctx, Random(), mlir_executable_path
+        module.ops.first, ctx, Random(seed), mlir_executable_path
     )
     if mlir_analysis is None:
         print("MLIR analysis succeeded")
@@ -86,15 +88,19 @@ class PDLMatchFuzzMain(xDSLOptMain):
 
     def register_all_arguments(self, arg_parser: argparse.ArgumentParser):
         super().register_all_arguments(arg_parser)
-        arg_parser.add_argument("--mlir-executable", type=str, required=True)
+        arg_parser.add_argument("--mlir-executable", type=str, default="mlir-opt")
+        arg_parser.add_argument("--seed", type=int, required=False)
 
     def register_all_dialects(self):
         super().register_all_dialects()
         self.ctx.load_dialect(PDLTest)
 
     def run(self):
+        seed = self.args.seed
+        if seed is None:
+            seed = randint(0, 2**30)
         if self.args.input_file is None:
-            pattern = generate_random_pdl_rewrite(Random())
+            pattern = generate_random_pdl_rewrite(seed)
             module = ModuleOp([pattern])
         else:
             chunks, extension = self.prepare_input()
@@ -102,7 +108,7 @@ class PDLMatchFuzzMain(xDSLOptMain):
             module = self.parse_chunk(chunks[0], extension)
             assert module is not None
 
-        fuzz_pdl_matches(module, self.ctx, self.args.mlir_executable)
+        fuzz_pdl_matches(module, self.ctx, self.args.mlir_executable, seed)
 
 
 def main():

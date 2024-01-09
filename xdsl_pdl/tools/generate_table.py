@@ -59,7 +59,7 @@ class GenerateTableMain(xDSLOptMain):
         super().__init__()
         self.ctx.allow_unregistered = True
         self.num_tested = 0
-        self.failed_analyses = 0
+        self.failed_analyses = []
         self.values = (([], []), ([], []))
 
     def register_all_dialects(self):

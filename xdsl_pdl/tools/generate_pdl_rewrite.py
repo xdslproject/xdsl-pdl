@@ -19,7 +19,7 @@ class PDLRewriteFuzzMain(xDSLOptMain):
 
     def register_all_arguments(self, arg_parser: argparse.ArgumentParser):
         super().register_all_arguments(arg_parser)
-        arg_parser.add_argument("--seed", type=int, optional=True)
+        arg_parser.add_argument("--seed", type=int, required=False)
         pass
 
     def run(self):

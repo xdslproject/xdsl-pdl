@@ -1,6 +1,6 @@
 from __future__ import annotations
 import argparse
-from random import Random
+from random import randint
 from xdsl.dialects.builtin import ModuleOp
 
 from xdsl.printer import Printer
@@ -23,6 +23,12 @@ class PDLAnalyzeRewrite(xDSLOptMain):
 
     def register_all_arguments(self, arg_parser: argparse.ArgumentParser):
         super().register_all_arguments(arg_parser)
+        arg_parser.add_argument(
+            "--seed",
+            type=int,
+            required=False,
+            help="Seed used for random number generation when generating a new PDL rewrite",
+        )
 
     def register_all_dialects(self):
         super().register_all_dialects()
@@ -30,7 +36,10 @@ class PDLAnalyzeRewrite(xDSLOptMain):
 
     def run(self):
         if self.args.input_file is None:
-            pattern = generate_random_pdl_rewrite(Random())
+            seed = self.args.seed
+            if seed is None:
+                seed = randint(0, 2**30)
+            pattern = generate_random_pdl_rewrite(seed)
             module = ModuleOp([pattern])
         else:
             chunks, extension = self.prepare_input()
