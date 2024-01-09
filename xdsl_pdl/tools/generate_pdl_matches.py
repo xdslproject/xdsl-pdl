@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+from random import Random
 
 from xdsl.ir import MLContext
 from xdsl.utils.diagnostic import Diagnostic
@@ -51,7 +52,7 @@ def fuzz_pdl_matches(module: ModuleOp, ctx: MLContext, mlir_executable_path: str
     printer = Printer(diagnostic=diagnostic)
     printer.print_op(module)
 
-    mlir_analysis = analyze_with_mlir(module.ops.first, ctx, mlir_executable_path)
+    mlir_analysis = analyze_with_mlir(module.ops.first, ctx, Random(), mlir_executable_path)
     if mlir_analysis is None:
         print("MLIR analysis succeeded")
     else:
@@ -91,7 +92,7 @@ class PDLMatchFuzzMain(xDSLOptMain):
 
     def run(self):
         if self.args.input_file is None:
-            pattern = generate_random_pdl_rewrite()
+            pattern = generate_random_pdl_rewrite(Random())
             module = ModuleOp([pattern])
         else:
             chunks, extension = self.prepare_input()

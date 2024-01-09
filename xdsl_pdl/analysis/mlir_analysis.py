@@ -1,7 +1,7 @@
 import subprocess
 from io import StringIO
 from dataclasses import dataclass
-from random import randrange
+from random import Random
 
 from xdsl.ir import MLContext, Operation, Region, Block
 from xdsl.printer import Printer
@@ -75,7 +75,7 @@ def run_with_mlir(
 
 
 def analyze_with_mlir(
-    pattern: PatternOp, ctx: MLContext, mlir_executable_path: str
+    pattern: PatternOp, ctx: MLContext, randgen: Random, mlir_executable_path: str
 ) -> MLIRFailure | MLIRInfiniteLoop | None:
     """
     Run the pattern on multiple examples with MLIR.
@@ -85,8 +85,8 @@ def analyze_with_mlir(
     all_dags = generate_all_dags(5)
     try:
         for _ in range(0, 10):
-            region, ops = pdl_to_operations(pattern, ctx)
-            dag = all_dags[randrange(0, len(all_dags))]
+            region, ops = pdl_to_operations(pattern, ctx, randgen)
+            dag = all_dags[randgen.randrange(0, len(all_dags))]
             create_dag_in_region(region, dag, ctx)
             for populated_region in put_operations_in_region(dag, region, ops):
                 cloned_region = Region()

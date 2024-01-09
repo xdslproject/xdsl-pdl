@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import argparse
-import random
+from random import Random
 from tabulate import tabulate
 
 from xdsl.ir import MLContext
@@ -24,7 +24,7 @@ from xdsl_pdl.pdltest import PDLTest
 
 
 def fuzz_pdl_matches(
-    module: ModuleOp, ctx: MLContext, mlir_executable_path: str
+    module: ModuleOp, ctx: MLContext, randgen: Random, mlir_executable_path: str
 ) -> tuple[bool, bool] | None:
     """
     Returns the result of the PDL analysis, and the result of the analysis using
@@ -42,7 +42,7 @@ def fuzz_pdl_matches(
     except Exception:
         return None
 
-    mlir_analysis = analyze_with_mlir(module.ops.first, ctx, mlir_executable_path)
+    mlir_analysis = analyze_with_mlir(module.ops.first, ctx, randgen, mlir_executable_path)
     return analysis_correct, mlir_analysis is None
 
 
@@ -57,17 +57,20 @@ class GenerateTableMain(xDSLOptMain):
 
     def register_all_arguments(self, arg_parser: argparse.ArgumentParser):
         super().register_all_arguments(arg_parser)
-        arg_parser.add_argument("--mlir-executable", type=str, required=True)
+        arg_parser.add_argument("--mlir-executable", type=str, default="mlir-opt")
+        arg_parser.add_argument("--num-patterns", type=int, default=10000)
+        arg_parser.add_argument("-j", type=int, default=-1)
 
     def run(self):
-        random.seed(42)
+        randgen = Random()
+        randgen.seed(42)
         values = [[0, 0], [0, 0]]
         failed_analyses = 0
         for i in range(10000):
             print(i)
-            pattern = generate_random_pdl_rewrite()
+            pattern = generate_random_pdl_rewrite(randgen)
             module = ModuleOp([pattern])
-            test_res = fuzz_pdl_matches(module, self.ctx, self.args.mlir_executable)
+            test_res = fuzz_pdl_matches(module, self.ctx, randgen, self.args.mlir_executable)
             if test_res is None:
                 failed_analyses += 1
                 continue

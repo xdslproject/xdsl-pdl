@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from random import randrange
+from random import Random
 
 from xdsl.ir import Block, Operation, Region, SSAValue
 
@@ -35,16 +35,17 @@ class _FuzzerOptions:
 
 @dataclass
 class _FuzzerContext:
+    randgen: Random
     values: list[SSAValue] = field(default_factory=list)
     operations: list[OperationOp] = field(default_factory=list)
 
     def get_random_value(self) -> SSAValue:
         assert len(self.values) != 0
-        return self.values[randrange(0, len(self.values))]
+        return self.values[self.randgen.randrange(0, len(self.values))]
 
     def get_random_operation(self) -> OperationOp:
         assert len(self.operations) != 0
-        return self.operations[randrange(0, len(self.operations))]
+        return self.operations[self.randgen.randrange(0, len(self.operations))]
 
 
 def _generate_random_operand(ctx: _FuzzerContext) -> tuple[SSAValue, list[Operation]]:
@@ -52,8 +53,8 @@ def _generate_random_operand(ctx: _FuzzerContext) -> tuple[SSAValue, list[Operat
     Generate a random operand.
     It is either a new `pdl.operand`, or an existing one in the context.
     """
-    if len(ctx.values) != 0 and randrange(0, 2) == 0:
-        return ctx.values[randrange(0, len(ctx.values))], []
+    if len(ctx.values) != 0 and ctx.randgen.randrange(0, 2) == 0:
+        return ctx.values[ctx.randgen.randrange(0, len(ctx.values))], []
     new_type = TypeOp.create(
         result_types=[TypeType()], attributes={"constantType": i32}
     )
@@ -68,10 +69,10 @@ def _generate_random_matched_operation(ctx: _FuzzerContext) -> list[Operation]:
     Generate a random `pdl.operation`, along with new
     `pdl.operand` and `pdl.type` if necessary.
     """
-    num_operands = randrange(
+    num_operands = ctx.randgen.randrange(
         _FuzzerOptions.min_operands, _FuzzerOptions.max_operands + 1
     )
-    num_results = randrange(_FuzzerOptions.min_results, _FuzzerOptions.max_results + 1)
+    num_results = ctx.randgen.randrange(_FuzzerOptions.min_results, _FuzzerOptions.max_results + 1)
     new_ops: list[Operation] = []
 
     operands: list[SSAValue] = []
@@ -104,7 +105,7 @@ def _generate_random_rewrite_operation(ctx: _FuzzerContext) -> list[Operation]:
     Generate a random operation in the rewrite part of the pattern.
     This can be either an `operation`, an `erase`, or a `replace`.
     """
-    operation_choice = randrange(0, 4)
+    operation_choice = ctx.randgen.randrange(0, 4)
 
     # Erase operation
     if operation_choice == 0:
@@ -128,10 +129,10 @@ def _generate_random_rewrite_operation(ctx: _FuzzerContext) -> list[Operation]:
 
     # Create a new operation
     assert operation_choice == 3
-    num_operands = randrange(
+    num_operands = ctx.randgen.randrange(
         _FuzzerOptions.min_operands, _FuzzerOptions.max_operands + 1
     )
-    num_results = randrange(_FuzzerOptions.min_results, _FuzzerOptions.max_results + 1)
+    num_results = ctx.randgen.randrange(_FuzzerOptions.min_results, _FuzzerOptions.max_results + 1)
 
     # If we need values but we don't have, we restart
     if num_operands != 0 and len(ctx.values) == 0:
@@ -159,15 +160,15 @@ def _generate_random_rewrite_operation(ctx: _FuzzerContext) -> list[Operation]:
     return new_ops
 
 
-def generate_unverified_random_pdl_rewrite() -> PatternOp:
+def generate_unverified_random_pdl_rewrite(randgen: Random) -> PatternOp:
     """
     Generate a random match part of a `pdl.rewrite`.
     """
-    ctx = _FuzzerContext()
-    num_matched_operations = randrange(
+    ctx = _FuzzerContext(randgen)
+    num_matched_operations = randgen.randrange(
         _FuzzerOptions.min_match_operations, _FuzzerOptions.max_match_operations + 1
     )
-    num_rewrite_operations = randrange(
+    num_rewrite_operations = randgen.randrange(
         _FuzzerOptions.min_rewrite_operations, _FuzzerOptions.max_rewrite_operations + 1
     )
 
@@ -192,9 +193,9 @@ def generate_unverified_random_pdl_rewrite() -> PatternOp:
     return PatternOp(1, None, body)
 
 
-def generate_random_pdl_rewrite() -> PatternOp:
+def generate_random_pdl_rewrite(randgen: Random) -> PatternOp:
     while True:
-        pattern = generate_unverified_random_pdl_rewrite()
+        pattern = generate_unverified_random_pdl_rewrite(randgen)
         try:
             pattern.verify()
         except Exception:

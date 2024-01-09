@@ -1,5 +1,6 @@
 from __future__ import annotations
 import argparse
+from random import Random
 from xdsl.dialects.builtin import ModuleOp
 
 from xdsl.printer import Printer
@@ -29,7 +30,7 @@ class PDLAnalyzeRewrite(xDSLOptMain):
 
     def run(self):
         if self.args.input_file is None:
-            pattern = generate_random_pdl_rewrite()
+            pattern = generate_random_pdl_rewrite(Random())
             module = ModuleOp([pattern])
         else:
             chunks, extension = self.prepare_input()

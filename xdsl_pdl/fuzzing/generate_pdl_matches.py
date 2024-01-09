@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from itertools import chain, combinations
 from dataclasses import dataclass, field
-from random import randrange
+from random import Random, randrange
 from typing import Generator, Iterable, cast
 
 from xdsl.ir import Attribute, Block, MLContext, OpResult, Operation, Region, SSAValue
@@ -129,7 +129,7 @@ class PDLSynthContext:
 
 
 def pdl_to_operations(
-    pattern: PatternOp, ctx: MLContext
+    pattern: PatternOp, ctx: MLContext, randgen: Random
 ) -> tuple[Region, list[Operation]]:
     pattern_ops = pattern.body.ops
     region = Region([Block()])
@@ -160,7 +160,7 @@ def pdl_to_operations(
             possible_values.extend(
                 [arg for arg in region_args if arg.type == operand_type]
             )
-            choice = randrange(0, len(possible_values) + 1)
+            choice = randgen.randrange(0, len(possible_values) + 1)
             if choice == len(possible_values):
                 arg = region.blocks[0].insert_arg(operand_type, 0)
             else:
@@ -260,7 +260,7 @@ def put_operations_in_region(
             block = region.blocks[i + 1]
             assert block.ops.last is not None
             block.insert_op_before(ops[0], block.ops.last)
-            yield from rec(i + 1, ops[1:])
+            yield from rec(i, ops[1:])
             ops[0].detach()
 
     yield from rec(0, ops)

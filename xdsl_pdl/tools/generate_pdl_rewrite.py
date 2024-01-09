@@ -1,4 +1,5 @@
 import argparse
+from random import Random
 from xdsl.xdsl_opt_main import xDSLOptMain
 
 from xdsl_pdl.fuzzing.generate_pdl_rewrite import generate_random_pdl_rewrite
@@ -21,7 +22,7 @@ class PDLRewriteFuzzMain(xDSLOptMain):
         pass
 
     def run(self):
-        pattern = generate_random_pdl_rewrite()
+        pattern = generate_random_pdl_rewrite(Random())
         module = ModuleOp([pattern])
         output_stream = self.prepare_output()
         output_stream.write(self.output_resulting_program(module))
