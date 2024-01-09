@@ -1,5 +1,5 @@
 #xdsl==0.15.0
-xdsl @ git+https://github.com/xdslproject/xdsl@6f4395faab308e1a9e3a166c1aa749b0b81cef21
+xdsl @ git+https://github.com/xdslproject/xdsl@0d90bf8ef40b2605221b36decae333b1d61cbf40
 pre-commit
 black
 tabulate
