@@ -15,7 +15,7 @@ from xdsl.dialects.pdl import (
     TypeType,
     ValueType,
 )
-from xdsl.dialects.builtin import IntegerAttr, IntegerType, StringAttr, i32
+from xdsl.dialects.builtin import IntAttr, IntegerAttr, IntegerType, StringAttr, i32
 
 from xdsl_pdl.pdltest import TestMatchOp, TestRewriteOp
 
@@ -72,7 +72,9 @@ def _generate_random_matched_operation(ctx: _FuzzerContext) -> list[Operation]:
     num_operands = ctx.randgen.randrange(
         _FuzzerOptions.min_operands, _FuzzerOptions.max_operands + 1
     )
-    num_results = ctx.randgen.randrange(_FuzzerOptions.min_results, _FuzzerOptions.max_results + 1)
+    num_results = ctx.randgen.randrange(
+        _FuzzerOptions.min_results, _FuzzerOptions.max_results + 1
+    )
     new_ops: list[Operation] = []
 
     operands: list[SSAValue] = []
@@ -132,7 +134,9 @@ def _generate_random_rewrite_operation(ctx: _FuzzerContext) -> list[Operation]:
     num_operands = ctx.randgen.randrange(
         _FuzzerOptions.min_operands, _FuzzerOptions.max_operands + 1
     )
-    num_results = ctx.randgen.randrange(_FuzzerOptions.min_results, _FuzzerOptions.max_results + 1)
+    num_results = ctx.randgen.randrange(
+        _FuzzerOptions.min_results, _FuzzerOptions.max_results + 1
+    )
 
     # If we need values but we don't have, we restart
     if num_operands != 0 and len(ctx.values) == 0:
@@ -190,12 +194,16 @@ def generate_unverified_random_pdl_rewrite(randgen: Random) -> PatternOp:
     rewrite = RewriteOp(rewritten_op.op, region)
 
     body = Region([Block(matched_ops + [rewrite])])
-    return PatternOp(1, None, body)
+    pattern = PatternOp(1, None, body)
+    return pattern
 
 
-def generate_random_pdl_rewrite(randgen: Random) -> PatternOp:
+def generate_random_pdl_rewrite(seed: int) -> PatternOp:
+    randgen = Random()
+    randgen.seed(seed)
     while True:
         pattern = generate_unverified_random_pdl_rewrite(randgen)
+        pattern.attributes["seed"] = IntAttr(seed)
         try:
             pattern.verify()
         except Exception:

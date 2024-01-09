@@ -44,20 +44,23 @@ def fuzz_pdl_matches(
     except Exception:
         return None
 
-    mlir_analysis = analyze_with_mlir(module.ops.first, ctx, randgen, mlir_executable_path)
+    mlir_analysis = analyze_with_mlir(
+        module.ops.first, ctx, randgen, mlir_executable_path
+    )
     return analysis_correct, mlir_analysis is None
+
 
 class GenerateTableMain(xDSLOptMain):
     num_tested: int
-    failed_analyses: int
-    values: list[list[int]]
+    failed_analyses: list[int]
+    values: tuple[tuple[list[int], list[int]], tuple[list[int], list[int]]]
 
     def __init__(self):
         super().__init__()
         self.ctx.allow_unregistered = True
         self.num_tested = 0
         self.failed_analyses = 0
-        self.values = [[0, 0], [0, 0]]
+        self.values = (([], []), ([], []))
 
     def register_all_dialects(self):
         super().register_all_dialects()
@@ -70,32 +73,39 @@ class GenerateTableMain(xDSLOptMain):
         arg_parser.add_argument("-j", type=int, default=cpu_count())
 
     def run_one_thread(self, seed: int):
+        pattern = generate_random_pdl_rewrite(seed)
+        module = ModuleOp([pattern])
         randgen = Random()
         randgen.seed(seed)
-        pattern = generate_random_pdl_rewrite(randgen)
-        module = ModuleOp([pattern])
-        test_res = fuzz_pdl_matches(module, self.ctx, randgen, self.args.mlir_executable)
+        test_res = fuzz_pdl_matches(
+            module, self.ctx, randgen, self.args.mlir_executable
+        )
         self.num_tested += 1
         print(f"Tested {self.num_tested} patterns", end="\r")
         if test_res is None:
-            self.failed_analyses += 1
+            self.failed_analyses.append(seed)
             return
-        self.values[int(test_res[0])][int(test_res[1])] += 1
+        self.values[int(test_res[0])][int(test_res[1])].append(seed)
 
     def run(self):
         randgen = Random()
         randgen.seed(42)
-        seeds = [randgen.randint(0, 2 ** 30) for _ in range(self.args.n)]
+        seeds = [randgen.randint(0, 2**30) for _ in range(self.args.n)]
         with concurrent.futures.ThreadPoolExecutor(max_workers=self.args.j) as executor:
             executor.map(self.run_one_thread, seeds)
 
-        print("Analysis failed, MLIR execution failed: ", self.values[0][0])
-        print("Analysis failed, MLIR execution succeeded: ", self.values[0][1])
-        print("Analysis succeeded, MLIR execution failed: ", self.values[1][0])
-        print("Analysis succeeded, MLIR execution succeeded: ", self.values[1][1])
-        print("PDL Analysis raised an exception: ", self.failed_analyses)
+        print("Analysis failed, MLIR execution failed: ", self.values[0][0], "\n")
+        print("Analysis succeeded, MLIR execution succeeded: ", self.values[1][1], "\n")
+        print("Analysis failed, MLIR execution succeeded: ", self.values[0][1], "\n")
+        print("Analysis succeeded, MLIR execution failed: ", self.values[1][0], "\n")
+        print("PDL Analysis raised an exception: ", self.failed_analyses, "\n")
 
-        print_results(self.values[0][0], self.values[0][1], self.values[1][0], self.values[1][1])
+        print_results(
+            len(self.values[0][0]),
+            len(self.values[0][1]),
+            len(self.values[1][0]),
+            len(self.values[1][1]),
+        )
 
 
 def print_results(

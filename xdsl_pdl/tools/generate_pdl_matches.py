@@ -52,7 +52,9 @@ def fuzz_pdl_matches(module: ModuleOp, ctx: MLContext, mlir_executable_path: str
     printer = Printer(diagnostic=diagnostic)
     printer.print_op(module)
 
-    mlir_analysis = analyze_with_mlir(module.ops.first, ctx, Random(), mlir_executable_path)
+    mlir_analysis = analyze_with_mlir(
+        module.ops.first, ctx, Random(), mlir_executable_path
+    )
     if mlir_analysis is None:
         print("MLIR analysis succeeded")
     else:
