@@ -18,6 +18,7 @@ from xdsl.dialects.pdl import (
 )
 from xdsl_pdl.analysis.pdl_analysis import PDLAnalysisAborted, pdl_analysis_pass
 from xdsl_pdl.analysis.mlir_analysis import (
+    MLIRNoMatch,
     analyze_with_mlir,
 )
 
@@ -47,6 +48,8 @@ def fuzz_pdl_matches(
     mlir_analysis = analyze_with_mlir(
         module.ops.first, ctx, randgen, mlir_executable_path
     )
+    if isinstance(mlir_analysis, MLIRNoMatch):
+        return None
     return analysis_correct, mlir_analysis is None
 
 

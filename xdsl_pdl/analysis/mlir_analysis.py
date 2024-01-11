@@ -24,6 +24,12 @@ class MLIRFailure(Exception):
     error_msg: str
 
 
+@dataclass
+class MLIRNoMatch(Exception):
+    failed_program: str
+    error_msg: str
+
+
 def run_with_mlir(
     program: Operation, pattern: PatternOp, mlir_executable_path: str
 ) -> str:
@@ -55,6 +61,7 @@ def run_with_mlir(
                 "--mlir-print-op-generic",
                 "-allow-unregistered-dialect",
                 "--test-pdl-bytecode-pass",
+                "--debug-only=pdl-bytecode",
             ],
             input=mlir_input.getvalue(),
             text=True,
@@ -63,7 +70,8 @@ def run_with_mlir(
         )
     except subprocess.TimeoutExpired:
         raise MLIRInfiniteLoop(mlir_input.getvalue())
-
+    if "RecordMatch" not in res.stderr:
+        raise MLIRNoMatch(mlir_input.getvalue(), res.stderr)
     if res.returncode != 0:
         raise MLIRFailure(mlir_input.getvalue(), res.stderr)
     return res.stdout
@@ -71,7 +79,7 @@ def run_with_mlir(
 
 def analyze_with_mlir(
     pattern: PatternOp, ctx: MLContext, randgen: Random, mlir_executable_path: str
-) -> MLIRFailure | MLIRInfiniteLoop | None:
+) -> MLIRFailure | MLIRInfiniteLoop | MLIRNoMatch | None:
     """
     Run the pattern on multiple examples with MLIR.
     If MLIR returns an error in any of the examples, returns the error.
@@ -94,5 +102,7 @@ def analyze_with_mlir(
     except MLIRFailure as e:
         return e
     except MLIRInfiniteLoop as e:
+        return e
+    except MLIRNoMatch as e:
         return e
     return None
