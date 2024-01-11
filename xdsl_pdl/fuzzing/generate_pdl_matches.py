@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from itertools import chain, combinations
 from dataclasses import dataclass, field
-from random import Random, randrange
+from random import Random
 from typing import Generator, Iterable, cast
 
 from xdsl.ir import Attribute, Block, MLContext, OpResult, Operation, Region, SSAValue
@@ -230,7 +230,7 @@ def create_dag_in_region(region: Region, dag: SingleEntryDAGStructure, ctx: MLCo
 
 
 def put_operations_in_region(
-    dag: SingleEntryDAGStructure, region: Region, ops: list[Operation]
+    dag: SingleEntryDAGStructure, region: Region, ops: list[Operation], ctx: MLContext
 ) -> Generator[Region, None, None]:
     block_to_idx: dict[Block, int] = {}
     for i, block in enumerate(region.blocks[1:]):
@@ -260,6 +260,10 @@ def put_operations_in_region(
             block = region.blocks[i + 1]
             assert block.ops.last is not None
             block.insert_op_before(ops[0], block.ops.last)
+            block.insert_op_before(
+                ctx.get_op("test.use_op").create(operands=ops[0].results),
+                block.ops.last,
+            )
             yield from rec(i, ops[1:])
             ops[0].detach()
 

@@ -88,7 +88,7 @@ def analyze_with_mlir(
             region, ops = pdl_to_operations(pattern, ctx, randgen)
             dag = all_dags[randgen.randrange(0, len(all_dags))]
             create_dag_in_region(region, dag, ctx)
-            for populated_region in put_operations_in_region(dag, region, ops):
+            for populated_region in put_operations_in_region(dag, region, ops, ctx):
                 cloned_region = Region()
                 populated_region.clone_into(cloned_region)
                 program = TestOp.create(regions=[cloned_region])
