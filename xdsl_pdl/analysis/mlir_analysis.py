@@ -6,16 +6,11 @@ from random import Random
 from xdsl.ir import MLContext, Operation, Region, Block
 from xdsl.printer import Printer
 
-from xdsl.dialects.builtin import ModuleOp, StringAttr
+from xdsl.dialects.builtin import FunctionType, ModuleOp, StringAttr
 from xdsl.dialects.pdl import PatternOp
-from xdsl.dialects.test import TestOp
+from xdsl.dialects.func import FuncOp
 
-from xdsl_pdl.fuzzing.generate_pdl_matches import (
-    create_dag_in_region,
-    generate_all_dags,
-    pdl_to_operations,
-    put_operations_in_region,
-)
+from xdsl_pdl.fuzzing.generate_pdl_matches import get_all_matches
 
 
 @dataclass
@@ -81,18 +76,21 @@ def analyze_with_mlir(
     Run the pattern on multiple examples with MLIR.
     If MLIR returns an error in any of the examples, returns the error.
     """
-    pattern = pattern.clone()
-    all_dags = generate_all_dags(5)
     try:
-        for _ in range(0, 10):
-            region, ops = pdl_to_operations(pattern, ctx, randgen)
-            dag = all_dags[randgen.randrange(0, len(all_dags))]
-            create_dag_in_region(region, dag, ctx)
-            for populated_region in put_operations_in_region(dag, region, ops, ctx):
-                cloned_region = Region()
-                populated_region.clone_into(cloned_region)
-                program = TestOp.create(regions=[cloned_region])
-                run_with_mlir(program, pattern, mlir_executable_path)
+        pattern = pattern.clone()
+        for populated_region in get_all_matches(
+            pattern, Region([Block()]), randgen, ctx
+        ):
+            cloned_region = Region()
+            populated_region.clone_into(cloned_region)
+            program = FuncOp(
+                "test",
+                FunctionType.from_lists(
+                    [arg.type for arg in cloned_region.blocks[0].args], []
+                ),
+                cloned_region,
+            )
+            run_with_mlir(program, pattern, mlir_executable_path)
     except MLIRFailure as e:
         return e
     except MLIRInfiniteLoop as e:
