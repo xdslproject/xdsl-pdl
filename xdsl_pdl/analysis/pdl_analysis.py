@@ -45,6 +45,7 @@ class PDLAnalysisException(Exception):
 
 
 enable_prints = True
+allow_self_replacements = True
 warnings.simplefilter("ignore", category=PDLDebugWarning)
 
 
@@ -69,7 +70,7 @@ class AnalyzedPDLOperation:
     pdl_op: pdl.OperationOp
     op_type: Type[Operation]
     matched: bool = True
-    erased_by: pdl.EraseOp | None = None
+    erased_by: pdl.EraseOp | pdl.ReplaceOp | None = None
     replaced_by: list[SSAValue] | AnalyzedPDLOperation | None = None
     use_info: UseInfo = field(default_factory=lambda: UseInfo())
     # op_results always stem from a pdl.ResultOp
@@ -321,7 +322,11 @@ class PDLAnalysis:
                         self._add_analysis_result_to_op(rhs_op, "out_of_scope_operand")
                         debug(f"Out of scope operand: {operand}")
 
-                    if operand in root_analysis.op_results:
+                    if (
+                        operand in root_analysis.op_results
+                        and self.get_analysis(rhs_op) not in self.erased_ops
+                        # and root_analysis in self.erased_ops
+                    ):
                         # We could also do this by removing the root op from scope
                         # but this way we can provide a better error message
                         self._add_analysis_result_to_op(rhs_op, "root_op_used_in_rhs")
@@ -357,14 +362,20 @@ class PDLAnalysis:
                         )
                         debug(f"Out of scope replacement: {val}")
                         return
-                # TODO: Check for replacement with itself, this is not allowed
+                # Check for replacement with itself, this is not allowed
+                # We allow the statement when the op has no results
                 if replaced_op := replace_op.repl_operation:
                     if replaced_op == replace_op.op_value:
-                        self._add_analysis_result_to_op(
-                            replace_op, "replacement_with_itself"
-                        )
-                        debug(f"Replacement with itself: {replace_op}")
-                        return
+                        if (
+                            not allow_self_replacements
+                            and isinstance(replaced_op.owner, Operation)
+                            and len(replaced_op.owner.results) > 0
+                        ):
+                            self._add_analysis_result_to_op(
+                                replace_op, "replacement_with_itself"
+                            )
+                            debug(f"Replacement with itself: {replace_op}")
+                            return
                 elif repl_vals := replace_op.repl_values:
                     if not isinstance(replace_op.op_value, OpResult):
                         raise PDLAnalysisException(
@@ -415,6 +426,18 @@ class PDLAnalysis:
         self.matching_scope.add_val_and_owner(
             pdl_operation_op.results[0], analyzed_pdl_op
         )
+        # Add all results that refer to this operation to the scope
+        # This remedies the problem that some generated rewrites have a pdl.ResultOp
+        # right before the pdl.Rewrite statement, that is only referred to in the
+        # rewriting portion.
+        for result in pdl_operation_op.results:
+            for use in result.uses:
+                if isinstance(use.operation, pdl.ResultOp):
+                    self.visited_ops.add(use.operation)
+                    analyzed_pdl_op.op_results.append(use.operation.val)
+                    self.matching_scope.add_val_and_owner(
+                        use.operation.val, analyzed_pdl_op
+                    )
         return analyzed_pdl_op
 
     def _trace_matching_op(self, pdl_op: Operation) -> AnalyzedPDLOperation | None:
@@ -507,7 +530,9 @@ class PDLAnalysis:
                         "pdl.Operation used for replacement is not part of the matched DAG!",
                     )
                 analyzed_op.replaced_by = analyzed_repl_op
-
+                # If the replacement is a self replacement mark this op as erased
+                if analyzed_op == analyzed_repl_op:
+                    analyzed_op.erased_by = rhs_op
             # Replacing with a list of SSAValues
             else:
                 analyzed_op.replaced_by = rhs_op.repl_values

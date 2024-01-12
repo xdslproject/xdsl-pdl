@@ -97,11 +97,28 @@ class GenerateTableMain(xDSLOptMain):
         with concurrent.futures.ThreadPoolExecutor(max_workers=self.args.j) as executor:
             executor.map(self.run_one_thread, seeds)
 
-        print("Analysis failed, MLIR execution failed: ", self.values[0][0], "\n")
-        print("Analysis succeeded, MLIR execution succeeded: ", self.values[1][1], "\n")
-        print("Analysis failed, MLIR execution succeeded: ", self.values[0][1], "\n")
-        print("Analysis succeeded, MLIR execution failed: ", self.values[1][0], "\n")
-        print("PDL Analysis raised an exception: ", self.failed_analyses, "\n")
+        print(
+            f"Analysis failed, MLIR execution failed: {len(self.values[0][0])}: {self.values[0][0]} \n"
+        )
+        print(
+            f"Analysis succeeded, MLIR execution succeeded: {len(self.values[1][1])}: {self.values[1][1]} \n"
+        )
+        print(
+            f"Analysis failed, MLIR execution succeeded: {len(self.values[0][1])}: {self.values[0][1]} \n"
+        )
+        print(
+            f"Analysis succeeded, MLIR execution failed: {len(self.values[1][0])}: {self.values[1][0]} \n"
+        )
+        print(
+            f"PDL Analysis raised an exception: {len(self.failed_analyses)}: {self.failed_analyses} \n"
+        )
+
+        print(
+            f"Total: s fail d fail, s succ d succ, s fail d succ, s succ d fail, failed analyses"
+        )
+        print(
+            f"occurences: {len(self.values[0][0])}, {len(self.values[1][1])}, {len(self.values[0][1])},{len(self.values[1][0])},{len(self.failed_analyses)}"
+        )
 
         print_results(
             len(self.values[0][0]),
