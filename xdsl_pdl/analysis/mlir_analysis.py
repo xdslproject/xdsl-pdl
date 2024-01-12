@@ -30,6 +30,11 @@ class MLIRNoMatch(Exception):
     error_msg: str
 
 
+@dataclass
+class MLIRSuccess:
+    pass
+
+
 def run_with_mlir(
     program: Operation, pattern: PatternOp, mlir_executable_path: str
 ) -> str:
@@ -70,16 +75,16 @@ def run_with_mlir(
         )
     except subprocess.TimeoutExpired:
         raise MLIRInfiniteLoop(mlir_input.getvalue())
-    if "RecordMatch" not in res.stderr:
-        raise MLIRNoMatch(mlir_input.getvalue(), res.stderr)
     if res.returncode != 0:
         raise MLIRFailure(mlir_input.getvalue(), res.stderr)
+    if "RecordMatch" not in res.stderr:
+        raise MLIRNoMatch(mlir_input.getvalue(), res.stderr)
     return res.stdout
 
 
 def analyze_with_mlir(
     pattern: PatternOp, ctx: MLContext, randgen: Random, mlir_executable_path: str
-) -> MLIRFailure | MLIRInfiniteLoop | MLIRNoMatch | None:
+) -> MLIRFailure | MLIRInfiniteLoop | MLIRNoMatch | MLIRSuccess:
     """
     Run the pattern on multiple examples with MLIR.
     If MLIR returns an error in any of the examples, returns the error.
@@ -105,4 +110,4 @@ def analyze_with_mlir(
         return e
     except MLIRNoMatch as e:
         return e
-    return None
+    return MLIRSuccess()

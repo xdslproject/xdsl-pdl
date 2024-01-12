@@ -541,8 +541,9 @@ class PDLAnalysis:
             assert isinstance(rhs_op.op_value, OpResult)
             assert isinstance(rhs_op.op_value.op, pdl.OperationOp)
             if (analyzed_op := self.get_analysis(rhs_op.op_value.op)) is None:
-                raise PDLAnalysisException(
-                    rhs_op, "Unknown pdl.Operation to be erased!"
+                raise PDLAnalysisAborted(
+                    rhs_op,
+                    "pdl.Operation to be erased is not part of the matching DAG!",
                 )
             analyzed_op.erased_by = rhs_op
         else:

@@ -22,6 +22,7 @@ from xdsl_pdl.analysis.pdl_analysis import (
 )
 from xdsl_pdl.analysis.mlir_analysis import (
     MLIRFailure,
+    MLIRSuccess,
     analyze_with_mlir,
 )
 
@@ -57,7 +58,7 @@ def fuzz_pdl_matches(
     mlir_analysis = analyze_with_mlir(
         module.ops.first, ctx, Random(seed), mlir_executable_path
     )
-    if mlir_analysis is None:
+    if isinstance(mlir_analysis, MLIRSuccess):
         print("MLIR analysis succeeded")
     else:
         print("MLIR analysis failed")

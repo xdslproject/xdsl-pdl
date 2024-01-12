@@ -16,9 +16,16 @@ from xdsl.dialects.builtin import (
 from xdsl.dialects.pdl import (
     PatternOp,
 )
-from xdsl_pdl.analysis.pdl_analysis import PDLAnalysisAborted, pdl_analysis_pass
+from xdsl_pdl.analysis.pdl_analysis import (
+    PDLAnalysisAborted,
+    PDLAnalysisException,
+    pdl_analysis_pass,
+)
 from xdsl_pdl.analysis.mlir_analysis import (
+    MLIRFailure,
+    MLIRInfiniteLoop,
     MLIRNoMatch,
+    MLIRSuccess,
     analyze_with_mlir,
 )
 
@@ -28,7 +35,9 @@ from xdsl_pdl.pdltest import PDLTest
 
 def fuzz_pdl_matches(
     module: ModuleOp, ctx: MLContext, randgen: Random, mlir_executable_path: str
-) -> tuple[bool, bool] | None:
+) -> tuple[
+    bool | Exception, MLIRNoMatch | MLIRSuccess | MLIRFailure | MLIRInfiniteLoop
+]:
     """
     Returns the result of the PDL analysis, and the result of the analysis using
     program fuzzing and MLIR.
@@ -37,20 +46,17 @@ def fuzz_pdl_matches(
         raise Exception("Expected a single toplevel pattern op")
 
     # Check if the pattern is valid
-    analysis_correct = True
+    analysis_correct: bool | Exception = True
     try:
         pdl_analysis_pass(ctx, module)
-    except PDLAnalysisAborted:
-        analysis_correct = False
-    except Exception:
-        return None
+    except Exception as e:
+        analysis_correct = e
 
     mlir_analysis = analyze_with_mlir(
         module.ops.first, ctx, randgen, mlir_executable_path
     )
-    if isinstance(mlir_analysis, MLIRNoMatch):
-        return None
-    return analysis_correct, mlir_analysis is None
+
+    return analysis_correct, mlir_analysis
 
 
 class GenerateTableMain(xDSLOptMain):
@@ -62,7 +68,8 @@ class GenerateTableMain(xDSLOptMain):
         super().__init__()
         self.ctx.allow_unregistered = True
         self.num_tested = 0
-        self.failed_analyses = []
+        self.failed_analyses: list[int] = []
+        self.no_mlir_matches: list[int] = []
         self.values = (([], []), ([], []))
 
     def register_all_dialects(self):
@@ -85,10 +92,15 @@ class GenerateTableMain(xDSLOptMain):
         )
         self.num_tested += 1
         print(f"Tested {self.num_tested} patterns", end="\r")
-        if test_res is None:
+        if isinstance(test_res[0], PDLAnalysisException):
             self.failed_analyses.append(seed)
-            return
-        self.values[int(test_res[0])][int(test_res[1])].append(seed)
+
+        if isinstance(test_res[1], MLIRNoMatch):
+            self.no_mlir_matches.append(seed)
+
+        self.values[int(isinstance(test_res[0], bool) and bool(test_res[0]))][
+            int(isinstance(test_res[1], MLIRSuccess))
+        ].append(seed)
 
     def run(self):
         randgen = Random()
@@ -112,12 +124,15 @@ class GenerateTableMain(xDSLOptMain):
         print(
             f"PDL Analysis raised an exception: {len(self.failed_analyses)}: {self.failed_analyses} \n"
         )
+        print(
+            f"No MLIR matches generated: {len(self.no_mlir_matches)}: {self.no_mlir_matches} \n"
+        )
 
         print(
             f"Total: s fail d fail, s succ d succ, s fail d succ, s succ d fail, failed analyses"
         )
         print(
-            f"occurences: {len(self.values[0][0])}, {len(self.values[1][1])}, {len(self.values[0][1])},{len(self.values[1][0])},{len(self.failed_analyses)}"
+            f"categories: {len(self.values[0][0])}, {len(self.values[1][1])}, {len(self.values[0][1])},{len(self.values[1][0])},{len(self.failed_analyses)}"
         )
 
         print_results(
