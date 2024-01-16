@@ -17,7 +17,7 @@ from xdsl.dialects.memref import MemRef
 from xdsl.dialects.mpi import MPI
 from xdsl.dialects.scf import Scf
 from xdsl.dialects.vector import Vector
-from xdsl.ir import MLContext, OpResult, Operation, SSAValue
+from xdsl.ir import MLContext, OpResult, Operation, SSAValue, Block
 from xdsl.printer import Printer
 from io import StringIO
 
@@ -45,7 +45,7 @@ class PDLAnalysisException(Exception):
 
 
 enable_prints = True
-allow_self_replacements = True
+allow_self_replacements = False
 warnings.simplefilter("ignore", category=PDLDebugWarning)
 
 
@@ -365,6 +365,11 @@ class PDLAnalysis:
                 # Check for replacement with itself, this is not allowed
                 # We allow the statement when the op has no results
                 if replaced_op := replace_op.repl_operation:
+                    if isinstance(replaced_op.owner, Block):
+                        raise PDLAnalysisException(
+                            replace_op,
+                            "Malformed rewrite!",
+                        )
                     if replaced_op == replace_op.op_value:
                         if (
                             not allow_self_replacements
@@ -376,6 +381,13 @@ class PDLAnalysis:
                             )
                             debug(f"Replacement with itself: {replace_op}")
                             return
+                    if len(replaced_op.owner.results) != len(
+                        replace_op.op_value.owner.results
+                    ):
+                        self._add_analysis_result_to_op(
+                            replace_op, "replacement_with_itself"
+                        )
+                        return
                 elif repl_vals := replace_op.repl_values:
                     if not isinstance(replace_op.op_value, OpResult):
                         raise PDLAnalysisException(
@@ -387,6 +399,12 @@ class PDLAnalysis:
                             replace_op, "replacement_with_itself"
                         )
                         debug(f"Replacement with itself: {replace_op}")
+                        return
+                    if len(replace_op.op_value.op.results) == len(repl_vals):
+                        self._add_analysis_result_to_op(
+                            replace_op, "wrong number of replacement values"
+                        )
+                        debug(f"wrong number of replacement values: {replace_op}")
                         return
 
     def check_match_possible(self):
