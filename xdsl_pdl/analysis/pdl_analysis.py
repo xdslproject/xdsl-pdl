@@ -389,6 +389,14 @@ class PDLAnalysis:
                         debug(f"Replacement with itself: {replace_op}")
                         return
 
+    def check_match_possible(self):
+        for op in self.pattern_op.body.ops:
+            if isinstance(op, pdl.OperationOp):
+                if not self.get_analysis(op):
+                    self._add_analysis_result_to_op(op, "unreachable_op")
+                    debug(f"Unreachable op: {op}")
+                    return
+
     def _trace_match_operation_op(
         self, pdl_operation_op: pdl.OperationOp
     ) -> AnalyzedPDLOperation:
@@ -617,6 +625,7 @@ def pdl_analysis_pass(ctx: MLContext, prog: ModuleOp):
             analysis = PDLAnalysis(ctx, op)
             analysis.terminator_analysis()
             analysis.dominance_analysis()
+            analysis.check_match_possible()
 
 
 if __name__ == "__main__":
