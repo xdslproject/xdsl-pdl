@@ -71,12 +71,12 @@ def fuzz_pdl_matches(
             print("Infinite loop")
 
     if analysis_correct:
-        if mlir_analysis is None:
+        if isinstance(mlir_analysis, MLIRSuccess):
             print("GOOD: Analysis succeeded, MLIR analysis succeeded")
         else:
             print("BAD: Analysis succeeded, MLIR analysis failed")
     else:
-        if mlir_analysis is None:
+        if isinstance(mlir_analysis, MLIRSuccess):
             print("BAD: Analysis failed, MLIR analysis succeeded")
         else:
             print("GOOD: Analysis failed, MLIR analysis failed")
