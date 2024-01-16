@@ -594,7 +594,9 @@ class PDLAnalysis:
                 debug(f"unsafe erasure: {rhs_op}!")
             analyzed_op.erased_by = rhs_op
         else:
-            raise PDLAnalysisException(rhs_op, f"Unsupported PDL op: {rhs_op.name}")
+            debug(f"Unsupported PDL op: {rhs_op.name}")
+            return
+            # raise PDLAnalysisException(rhs_op, f"Unsupported PDL op: {rhs_op.name}")
         self.visited_ops.add(rhs_op)
 
     def _trace_generate_new_op(
