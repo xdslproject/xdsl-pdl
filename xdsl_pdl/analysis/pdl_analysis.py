@@ -46,6 +46,7 @@ class PDLAnalysisException(Exception):
 
 enable_prints = True
 allow_self_replacements = False
+allow_unsafe_erasures = False
 warnings.simplefilter("ignore", category=PDLDebugWarning)
 
 
@@ -571,6 +572,9 @@ class PDLAnalysis:
                     rhs_op,
                     "pdl.Operation to be erased is not part of the matching DAG!",
                 )
+            if not allow_unsafe_erasures and analyzed_op not in self.generated_ops:
+                self._add_analysis_result_to_op(rhs_op, "unsafe erasure")
+                debug(f"unsafe erasure: {rhs_op}!")
             analyzed_op.erased_by = rhs_op
         else:
             raise PDLAnalysisException(rhs_op, f"Unsupported PDL op: {rhs_op.name}")
