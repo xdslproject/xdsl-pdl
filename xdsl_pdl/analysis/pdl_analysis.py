@@ -323,10 +323,13 @@ class PDLAnalysis:
                         self._add_analysis_result_to_op(rhs_op, "out_of_scope_operand")
                         debug(f"Out of scope operand: {operand}")
 
+                    # Check whether the root op is used in the rhs
+                    # except when the op that uses it is erased or replaced later
                     if (
                         operand in root_analysis.op_results
-                        and self.get_analysis(rhs_op) not in self.erased_ops
-                        # and root_analysis in self.erased_ops
+                        and (analyzed_op := self.get_analysis(rhs_op))
+                        not in self.erased_ops
+                        and analyzed_op.replaced_by is None
                     ):
                         # We could also do this by removing the root op from scope
                         # but this way we can provide a better error message
@@ -376,6 +379,8 @@ class PDLAnalysis:
                             not allow_self_replacements
                             and isinstance(replaced_op.owner, Operation)
                             and len(replaced_op.owner.results) > 0
+                            and self.get_analysis(replaced_op.owner)
+                            not in self.generated_ops
                         ):
                             self._add_analysis_result_to_op(
                                 replace_op, "replacement_with_itself"
