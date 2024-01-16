@@ -382,11 +382,12 @@ class PDLAnalysis:
                             )
                             debug(f"Replacement with itself: {replace_op}")
                             return
-                    if len(replaced_op.owner.results) != len(
-                        replace_op.op_value.owner.results
+                    # operands (of type pdl.type) are the number of results the generated/matched op has
+                    if len(replaced_op.owner.type_values) != len(
+                        replace_op.op_value.owner.type_values
                     ):
                         self._add_analysis_result_to_op(
-                            replace_op, "replacement_with_itself"
+                            replace_op, "wrong number of replacement values"
                         )
                         return
                 elif repl_vals := replace_op.repl_values:
@@ -395,18 +396,34 @@ class PDLAnalysis:
                             replace_op,
                             "pdl.ReplaceOp must have the result of pdl.OperationOp as operand!",
                         )
+
                     if replace_op.op_value.op.results == repl_vals:
                         self._add_analysis_result_to_op(
                             replace_op, "replacement_with_itself"
                         )
                         debug(f"Replacement with itself: {replace_op}")
                         return
-                    if len(replace_op.op_value.op.results) == len(repl_vals):
+
+                    # Check whether the replacement values stem from the op we are replacing
+                    for repl_val in repl_vals:
+                        if isinstance(result_op := repl_val.owner, pdl.ResultOp) and (
+                            result_op.parent_ == replace_op.op_value
+                        ):
+                            self._add_analysis_result_to_op(
+                                replace_op, "replacement_with_result_of_self"
+                            )
+                            debug(f"replacement_with_result_of_self: {replace_op}")
+                            return
+
+                    if len(replace_op.op_value.op.type_values) != len(repl_vals):
                         self._add_analysis_result_to_op(
                             replace_op, "wrong number of replacement values"
                         )
                         debug(f"wrong number of replacement values: {replace_op}")
                         return
+                for result in replace_op.op_value.op.results:
+                    current_scope.remove_val(result)
+                current_scope.remove_val(replace_op.op_value)
 
     def check_match_possible(self):
         for op in self.pattern_op.body.ops:
