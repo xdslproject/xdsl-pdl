@@ -45,7 +45,8 @@ class PDLAnalysisException(Exception):
 
 
 enable_prints = True
-allow_self_replacements = False
+# Problematic self replacements that might break dominance are still flagged
+allow_self_replacements = True
 allow_unsafe_erasures = False
 warnings.simplefilter("ignore", category=PDLDebugWarning)
 
@@ -366,6 +367,7 @@ class PDLAnalysis:
                         )
                         debug(f"Out of scope replacement: {val}")
                         return
+
                 # Check for replacement with itself, this is not allowed
                 # We allow the statement when the op has no results
                 if replaced_op := replace_op.repl_operation:
@@ -375,21 +377,33 @@ class PDLAnalysis:
                             "Malformed rewrite!",
                         )
                     if replaced_op == replace_op.op_value:
+                        analyzed_replaced_op = self.get_analysis(replaced_op.owner)
                         if (
-                            not allow_self_replacements
-                            and isinstance(replaced_op.owner, Operation)
-                            and len(replaced_op.owner.results) > 0
-                            and self.get_analysis(replaced_op.owner)
-                            not in self.generated_ops
+                            len(replaced_op.owner.results) > 0
+                            and analyzed_replaced_op not in self.generated_ops
                         ):
-                            self._add_analysis_result_to_op(
-                                replace_op, "replacement_with_itself"
-                            )
-                            debug(f"Replacement with itself: {replace_op}")
-                            return
+                            if (
+                                not allow_unsafe_erasures
+                                and analyzed_replaced_op not in self.generated_ops
+                                and len(analyzed_replaced_op.pdl_op.type_values) > 0
+                            ):
+                                # This is only an unsafe erasure if the op has results
+                                self._add_analysis_result_to_op(
+                                    rhs_op, "unsafe erasure"
+                                )
+                                debug(f"unsafe erasure: {rhs_op}!")
+                            if not allow_self_replacements:
+                                self._add_analysis_result_to_op(
+                                    replace_op, "replacement_with_itself"
+                                )
+                                debug(f"Replacement with itself: {replace_op}")
+                                return
                     # operands (of type pdl.type) are the number of results the generated/matched op has
                     if len(replaced_op.owner.type_values) != len(
                         replace_op.op_value.owner.type_values
+                    ) and (
+                        isinstance(replace_op.op_value.owner, pdl.OperationOp)
+                        and len(replace_op.op_value.owner.type_values) > 0
                     ):
                         self._add_analysis_result_to_op(
                             replace_op, "wrong number of replacement values"
@@ -594,7 +608,11 @@ class PDLAnalysis:
                     rhs_op,
                     "pdl.Operation to be erased is not part of the matching DAG!",
                 )
-            if not allow_unsafe_erasures and analyzed_op not in self.generated_ops:
+            if (
+                not allow_unsafe_erasures
+                and analyzed_op not in self.generated_ops
+                and len(analyzed_op.pdl_op.type_values) > 0
+            ):
                 self._add_analysis_result_to_op(rhs_op, "unsafe erasure")
                 debug(f"unsafe erasure: {rhs_op}!")
             analyzed_op.erased_by = rhs_op
