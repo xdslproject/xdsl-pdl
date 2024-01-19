@@ -17,7 +17,6 @@ from xdsl.dialects.pdl import (
     PatternOp,
 )
 from xdsl_pdl.analysis.pdl_analysis import (
-    PDLAnalysisAborted,
     PDLAnalysisException,
     pdl_analysis_pass,
 )
