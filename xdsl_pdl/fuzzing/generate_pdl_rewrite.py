@@ -55,9 +55,7 @@ def _generate_random_operand(ctx: _FuzzerContext) -> tuple[SSAValue, list[Operat
     """
     if len(ctx.values) != 0 and ctx.randgen.randrange(0, 2) == 0:
         return ctx.values[ctx.randgen.randrange(0, len(ctx.values))], []
-    new_type = TypeOp.create(
-        result_types=[TypeType()], attributes={"constantType": i32}
-    )
+    new_type = TypeOp(i32)
     new_operand = OperandOp.create(
         result_types=[ValueType()], operands=[new_type.result]
     )
@@ -85,9 +83,7 @@ def _generate_random_matched_operation(ctx: _FuzzerContext) -> list[Operation]:
         new_ops.extend(operand_ops)
 
     for _ in range(num_results):
-        new_type = TypeOp.create(
-            result_types=[TypeType()], attributes={"constantType": i32}
-        )
+        new_type = TypeOp(i32)
         results.append(new_type.result)
         new_ops.extend([new_type])
 
@@ -146,9 +142,7 @@ def _generate_random_rewrite_operation(ctx: _FuzzerContext) -> list[Operation]:
     operands = [ctx.get_random_value() for _ in range(num_operands)]
     results: list[SSAValue] = []
     for _ in range(num_results):
-        new_type = TypeOp.create(
-            result_types=[TypeType()], attributes={"constantType": i32}
-        )
+        new_type = TypeOp(i32)
         results.append(new_type.result)
         new_ops.extend([new_type])
 
