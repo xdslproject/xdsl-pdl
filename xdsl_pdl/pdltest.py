@@ -44,4 +44,15 @@ class TestUseOp(IRDLOperation):
     regs: VarRegion = var_region_def()
 
 
-PDLTest = Dialect("PDLTest", [TestMatchOp, TestRewriteOp, TestUseOp])
+@irdl_op_definition
+class TestTerminatorOp(IRDLOperation):
+    """A test operation representing an operation that has been rewritten."""
+
+    name = "test.terminator"
+
+    res: VarOpResult = var_result_def()
+    ops: VarOperand = var_operand_def()
+    regs: VarRegion = var_region_def()
+
+
+PDLTest = Dialect("PDLTest", [TestMatchOp, TestRewriteOp, TestUseOp, TestTerminatorOp])
