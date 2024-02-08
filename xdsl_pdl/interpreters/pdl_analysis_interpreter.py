@@ -27,6 +27,7 @@ class DataKeys(Enum):
     PHASE = "phase"
     # INSERTION_POINT = "insertion_point"
     GENERATED_OPS = "ops"
+    ROOT_OP = "root"
 
 
 class Phase(Enum):
@@ -53,7 +54,7 @@ def abort_if_not_in_scope(
     msg: str = "value not in scope.",
 ) -> bool:
     if not check_in_scope(interpreter, values):
-        raise PDLAnalysisException(op, msg)
+        raise PDLAnalysisAborted(op, msg)
     return True
 
 
@@ -89,7 +90,7 @@ class PDLAnalysisFunctions(InterpreterFunctions):
     def run_op(
         interpreter: Interpreter, op: Operation, add_to_scope: bool = True
     ) -> None:
-        print(f"running op: {op.name}")
+        # print(f"running op: {op.name}")
         # TODO: should this be op.operands?
         abort_if_not_in_scope(interpreter, op.operands, op, "operand not in scope")
         inputs = interpreter.get_values(op.operands)
@@ -107,6 +108,7 @@ class PDLAnalysisFunctions(InterpreterFunctions):
         return {
             DataKeys.PHASE: Phase.INIT,
             DataKeys.GENERATED_OPS: list(),
+            DataKeys.ROOT_OP: None,
         }
 
     @staticmethod
@@ -130,11 +132,20 @@ class PDLAnalysisFunctions(InterpreterFunctions):
     def get_value(interpreter: Interpreter, value: SSAValue) -> Any:
         return interpreter.get_values([value])[0]
 
-    @staticmethod
-    def remove_from_scope(interpreter: Interpreter, value: SSAValue) -> None:
-        op_or_val = interpreter.get_values([value])[0]
+    def get_actual(self, interpreter: Interpreter, repr: Any) -> SSAValue:
+        # Note: This does only work in the current context, no lookup is
+        #       performed in the parent context.
+        return next(key for key, value in interpreter._ctx.env.items() if value == repr)
 
+    def remove_from_scope(self, interpreter: Interpreter, value: SSAValue) -> None:
+        op_or_val = interpreter.get_values([value])[0]
         op_or_val.in_scope = False
+        # print(f"removing {op_or_val} from scope")
+        if isinstance(op_or_val, Op):
+            for result in op_or_val.results_taken:
+                self.remove_from_scope(
+                    interpreter, self.get_actual(interpreter, result)
+                )
         interpreter.set_values([(value, op_or_val)])
 
     @impl(pdl.AttributeOp)
@@ -161,8 +172,6 @@ class PDLAnalysisFunctions(InterpreterFunctions):
             self.remove_from_scope(interpreter, op.op_value)
             erased_op: Op = self.get_value(interpreter, op.op_value)
             self.get_state(interpreter, DataKeys.GENERATED_OPS).remove(erased_op)
-
-        # TODO: record the changed op order
 
         return ()
 
@@ -203,6 +212,8 @@ class PDLAnalysisFunctions(InterpreterFunctions):
             ],
             result_types=args[len(op.attributeValueNames) + len(op.operand_values) :],
         )
+        # The uses in pdl.ResultOp ops are not known yet.
+
         # self.get_state(interpreter, DataKeys.GENERATED_OPS).append(pdl_op)
         return (pdl_op,)
 
@@ -210,22 +221,35 @@ class PDLAnalysisFunctions(InterpreterFunctions):
         self, interpreter: Interpreter, op: pdl.OperationOp, args: PythonValues
     ):
         pdl_op = interpreter.get_values([op.results[0]])[0]
+        # record uses in pdl.ResultOp ops
+        for use in op.results[0].uses:
+            if isinstance(use.operation, pdl.ResultOp) | isinstance(
+                use.operation, pdl.ResultsOp
+            ):
+                pdl_op.results_taken.append(
+                    self.get_value(interpreter, use.operation.results[0])
+                )
+
         return (pdl_op,)
 
     def run_operation(
         self, interpreter: Interpreter, op: pdl.OperationOp, args: PythonValues
     ) -> PythonValues:
         pdl_op = interpreter.get_values([op.results[0]])[0]
-        # for operand in op.operands:
-        #     if not check_in_scope(interpreter, operand):
-        #         raise PDLAnalysisAborted(op, f"Operand {operand} is not in scope")
+
+        # Check that this does not use the root
+        for operand in pdl_op.operands:
+            if operand.op == self.get_state(interpreter, DataKeys.ROOT_OP):
+                raise PDLAnalysisAborted(
+                    op, "Rewrite operation uses the root as an operand."
+                )
 
         # print("operands:")
         # print(interpreter.get_values(op.operands))
         # print(interpreter.get_values([args[0]]))
         gen_ops = self.get_state(interpreter, DataKeys.GENERATED_OPS)
         if len(gen_ops) == 0:
-            raise PDLAnalysisException(
+            raise PDLAnalysisAborted(
                 op, "No valid insertion point set, possibly the root was deleted."
             )
         gen_ops.append(pdl_op)
@@ -252,12 +276,12 @@ class PDLAnalysisFunctions(InterpreterFunctions):
         # TODO: check that all ops are reachable?
 
         if not isinstance(rewrite_op := op.body.block.last_op, pdl.RewriteOp):
-            raise PDLAnalysisAborted(op, "Pattern does not end with a rewrite")
+            raise PDLAnalysisException(op, "Pattern does not end with a rewrite")
         # Initially set insertion point to the root
         if rewrite_op.root:
             root_op = self.get_value(interpreter, rewrite_op.root)
         else:
-            raise PDLAnalysisAborted(
+            raise PDLAnalysisException(
                 op, "Rewrites without explicit root are not supported."
             )
         self.get_state(interpreter, DataKeys.GENERATED_OPS).append(root_op)
@@ -300,6 +324,11 @@ class PDLAnalysisFunctions(InterpreterFunctions):
             # update the scope
             # I can simply look up the uses of this in the env and update there
 
+            # Erasure of the replaced op
+            self.remove_from_scope(interpreter, replaced_op)
+            erased_op: Op = self.get_value(interpreter, replaced_op)
+            self.get_state(interpreter, DataKeys.GENERATED_OPS).remove(erased_op)
+
         # TODO: If arbitrary stuff is replaced I should check whether the new value is
         # statically known to be before the old value. Otherwise it could be invalid.
 
@@ -310,11 +339,23 @@ class PDLAnalysisFunctions(InterpreterFunctions):
         self, interpreter: Interpreter, op: pdl.RewriteOp, args: PythonValues
     ) -> PythonValues:
         # print("running rewrite")
+        if op.root is None:
+            raise PDLAnalysisException(op, "RewriteOp must have a root")
+        else:
+            self.set_state(
+                interpreter, DataKeys.ROOT_OP, self.get_value(interpreter, op.root)
+            )
+
         if self.get_state(interpreter, DataKeys.PHASE) == Phase.INIT:
             if op.body:
                 for nested_op in op.body.blocks[0].ops:
                     self.run_op(interpreter, nested_op, add_to_scope=True)
             return ReturnedValues(()), ()
+
+        if self.get_state(interpreter, DataKeys.PHASE) == Phase.MATCHING:
+            # To initialize the results taken of ops
+            for nested_op in op.body.blocks[0].ops:
+                self.run_op(interpreter, nested_op, add_to_scope=False)
 
         self.set_state(interpreter, DataKeys.PHASE, Phase.REWRITING)
 
@@ -372,6 +413,7 @@ class Op:
     attribute_values: list[Attribute] = field(default_factory=list)
     operands: list[Value] = field(default_factory=list)
     result_types: list[Type] = field(default_factory=list)
+    results_taken: list[Value] = field(default_factory=list)
     in_scope: bool = True
 
     def __repr__(self) -> str:
