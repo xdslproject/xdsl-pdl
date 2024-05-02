@@ -425,8 +425,11 @@ class PDLAnalysis:
 
                     # Check whether the replacement values stem from the op we are replacing
                     for repl_val in repl_vals:
-                        if isinstance(result_op := repl_val.owner, pdl.ResultOp) and (
-                            result_op.parent_ == replace_op.op_value
+                        if (
+                            isinstance(result_op := repl_val.owner, pdl.ResultOp)
+                            and (result_op.parent_ == replace_op.op_value)
+                            and self.get_analysis(replace_op.op_value.owner)
+                            not in self.generated_ops
                         ):
                             self._add_analysis_result_to_op(
                                 replace_op, "replacement_with_result_of_self"
@@ -451,6 +454,14 @@ class PDLAnalysis:
                     self._add_analysis_result_to_op(op, "unreachable_op")
                     debug(f"Unreachable op: {op}")
                     return
+
+    def check_valid_insertion_point(self):
+        # I will check this first only for the case where the root op is erased/replaced
+        # before emitting any ops.
+        # I think this is problematic, as emmitting an op and then erasing it would trigger this as well.
+        # I did not test this, but I think this is the case.
+        # The proper solution to this would be to model the actual insertionPoint
+        pass
 
     def _trace_match_operation_op(
         self, pdl_operation_op: pdl.OperationOp

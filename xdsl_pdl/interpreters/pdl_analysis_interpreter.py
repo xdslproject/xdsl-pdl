@@ -338,7 +338,7 @@ class PDLAnalysisFunctions(InterpreterFunctions):
                 pdl_op.results_taken.append(
                     self.get_value(interpreter, use.operation.results[0])
                 )
-        # match the operands that stem form pdl.operation ops
+        # match the operands that stem from pdl.operation ops
 
         for operand in op.operands:
             self.run_op(
@@ -542,6 +542,7 @@ class PDLAnalysisFunctions(InterpreterFunctions):
 
         if self.get_state(interpreter, DataKeys.PHASE) == Phase.MATCHING:
             # To initialize the results taken of ops
+            # TODO: This is unreachable and should be safe to delete
             for nested_op in op.body.blocks[0].ops:
                 self.run_op(interpreter, nested_op, add_to_scope=False)
 

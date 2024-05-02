@@ -25,6 +25,8 @@ from xdsl_pdl.analysis.mlir_analysis import (
     MLIRSuccess,
     analyze_with_mlir,
 )
+from xdsl.interpreter import Interpreter
+from xdsl_pdl.interpreters.pdl_analysis_interpreter import PDLAnalysisFunctions
 
 from xdsl_pdl.fuzzing.generate_pdl_rewrite import generate_random_pdl_rewrite
 from xdsl_pdl.pdltest import PDLTest
@@ -37,6 +39,29 @@ def fuzz_pdl_matches(
         raise Exception("Expected a single toplevel pattern op")
 
     print("Analysis result of the pattern:")
+
+    diagnostic = Diagnostic()
+    interpreter_analysis_correct = True
+    try:
+        interpreter = Interpreter(ModuleOp([]))
+        interpreter.register_implementations(PDLAnalysisFunctions())
+        pattern = module.body.ops.first
+        interpreter.run_op(pattern, ())
+        # pdl_analysis_pass(ctx, module)
+    except PDLAnalysisAborted as e:
+        diagnostic.add_message(e.op, e.msg)
+        interpreter_analysis_correct = False
+        print("Interpreter-based found error")
+    except PDLAnalysisException as e:
+        diagnostic.add_message(e.op, e.msg)
+        interpreter_analysis_correct = False
+        print("Interpreter-based terminated unexpectedly")
+    else:
+        print("\n✓ Interpreter-based analysis succeeded")
+
+    printer = Printer(diagnostic=diagnostic)
+    printer.print_op(module)
+
     # Check if the pattern is valid
     analysis_correct = True
     diagnostic = Diagnostic()
@@ -51,13 +76,19 @@ def fuzz_pdl_matches(
         analysis_correct = False
         print("PDL analysis found terminated unexpectedly")
     else:
-        print("PDL analysis succeeded")
+        print("\n✓ PDL analysis succeeded")
     printer = Printer(diagnostic=diagnostic)
     printer.print_op(module)
 
-    mlir_analysis = analyze_with_mlir(
-        module.ops.first, ctx, Random(seed), mlir_executable_path
-    )
+    if analysis_correct != interpreter_analysis_correct:
+        print("Analysis results differ")
+
+    if True:
+        mlir_analysis = analyze_with_mlir(
+            module.ops.first, ctx, Random(seed), mlir_executable_path
+        )
+    else:
+        mlir_analysis = None
     if isinstance(mlir_analysis, MLIRSuccess):
         print("MLIR analysis succeeded")
     else:
@@ -90,7 +121,7 @@ class PDLMatchFuzzMain(xDSLOptMain):
     def register_all_arguments(self, arg_parser: argparse.ArgumentParser):
         super().register_all_arguments(arg_parser)
         arg_parser.add_argument("--mlir-executable", type=str, default="mlir-opt")
-        arg_parser.add_argument("--seed", type=int, required=False)
+        arg_parser.add_argument("--seed", type=int, required=False, default=512831000)
 
     def register_all_dialects(self):
         super().register_all_dialects()
@@ -100,6 +131,7 @@ class PDLMatchFuzzMain(xDSLOptMain):
         seed = self.args.seed
         if seed is None:
             seed = randint(0, 2**30)
+        print(f"seed: {seed}")
         if self.args.input_file is None:
             pattern = generate_random_pdl_rewrite(seed)
             module = ModuleOp([pattern])

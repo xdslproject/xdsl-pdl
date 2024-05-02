@@ -30,6 +30,8 @@ from xdsl_pdl.analysis.mlir_analysis import (
 
 from xdsl_pdl.fuzzing.generate_pdl_rewrite import generate_random_pdl_rewrite
 from xdsl_pdl.pdltest import PDLTest
+from xdsl.interpreter import Interpreter
+from xdsl_pdl.interpreters.pdl_analysis_interpreter import PDLAnalysisFunctions
 
 
 def fuzz_pdl_matches(
@@ -47,7 +49,11 @@ def fuzz_pdl_matches(
     # Check if the pattern is valid
     analysis_correct: bool | Exception = True
     try:
-        pdl_analysis_pass(ctx, module)
+        interpreter = Interpreter(ModuleOp([]))
+        interpreter.register_implementations(PDLAnalysisFunctions())
+        pattern = module.body.ops.first
+        interpreter.run_op(pattern, ())
+        # pdl_analysis_pass(ctx, module)
     except Exception as e:
         analysis_correct = e
 
@@ -102,6 +108,7 @@ class GenerateTableMain(xDSLOptMain):
         ].append(seed)
 
     def run(self):
+        print("running!")
         randgen = Random()
         randgen.seed(42)
         seeds = [randgen.randint(0, 2**30) for _ in range(self.args.n)]
