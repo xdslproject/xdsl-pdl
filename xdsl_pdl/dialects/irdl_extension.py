@@ -17,8 +17,10 @@ class CheckSubsetOp(IRDLOperation):
 
     irdl_options = [AttrSizedOperandSegments()]
 
-    lhs = var_operand_def(AttributeType)
-    rhs = var_operand_def(AttributeType)
+    lhs = var_operand_def(AttributeType())
+    rhs = var_operand_def(AttributeType())
+
+    assembly_format = "attr-dict `` `(` $lhs `)` `of` `` `(` $rhs `)`"
 
 
 IRDLExtension = Dialect("irdl_ext", [CheckSubsetOp])
