@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-from typing import Sequence, Iterable
+from typing import Sequence
 
-from xdsl.dialects.builtin import ArrayAttr, StringAttr
 from xdsl.dialects.pdl import ApplyNativeConstraintOp  # Operations; Types
 from xdsl.dialects.pdl import (
     ApplyNativeRewriteOp,
@@ -24,23 +23,17 @@ from xdsl.dialects.pdl import (
     TypesOp,
     TypeType,
     ValueType,
-    parse_operands_with_types,
-    print_operands_with_types,
 )
-from xdsl.dialects import pdl
 from xdsl.ir import Dialect, ParametrizedAttribute, TypeAttribute
 from xdsl.irdl import (
     IRDLOperation,
     OpResult,
     SSAValue,
     VarOperand,
-    attr_def,
-    opt_attr_def,
     irdl_attr_definition,
     irdl_op_definition,
     result_def,
     var_operand_def,
-    AttrSizedOperandSegments,
 )
 from xdsl.parser import Parser
 from xdsl.printer import Printer
