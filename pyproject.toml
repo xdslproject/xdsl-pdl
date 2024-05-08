@@ -5,7 +5,7 @@ description = "PDL experiments in xDSL"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
-  "xdsl @ git+https://github.com/xdslproject/xdsl@523f2a6",
+  "xdsl == 0.19.0",
 ]
 
 [project.scripts]
