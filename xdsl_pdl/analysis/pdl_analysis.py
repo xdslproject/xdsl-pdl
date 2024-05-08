@@ -330,6 +330,7 @@ class PDLAnalysis:
                         operand in root_analysis.op_results
                         and (analyzed_op := self.get_analysis(rhs_op))
                         not in self.erased_ops
+                        and analyzed_op is not None
                         and analyzed_op.replaced_by is None
                     ):
                         # We could also do this by removing the root op from scope
