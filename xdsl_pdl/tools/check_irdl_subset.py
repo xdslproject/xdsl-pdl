@@ -173,10 +173,16 @@ def main():
     assert isinstance(rhs_yield, YieldOp)
 
     for lhs_arg, rhs_arg in zip(lhs_yield.args, rhs_yield.args):
-        constraints.append(lhs_arg == rhs_arg)
-    solver.add(z3.Not(z3.Exists(constants, z3.Or(constraints))))
+        constraints.append(values_to_z3[lhs_arg] == values_to_z3[rhs_arg])
+    solver.add(z3.Not(z3.Exists(constants, z3.And(constraints))))
 
-    print(solver.check())
+    print("SMT program:")
+    print(solver)
+    if solver.check() == z3.sat:
+        print("sat: lhs is not a subset of rhs")
+        print("model: ", solver.model())
+    else:
+        print("unsat: lhs is a subset of rhs")
 
 
 if "__main__" == __name__:
