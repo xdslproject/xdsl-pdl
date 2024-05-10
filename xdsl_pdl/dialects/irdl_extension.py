@@ -18,12 +18,8 @@ from xdsl.printer import Printer
 class CheckSubsetOp(IRDLOperation):
     name = "irdl_ext.check_subset"
 
-    irdl_options = [AttrSizedOperandSegments()]
-
     lhs = region_def("single_block")
     rhs = region_def("single_block")
-
-    # assembly_format = "attr-dict $lhs `of` $rhs"
 
     def __init__(
         self, lhs: Region, rhs: Region, attr_dict: DictionaryAttr | None = None
@@ -42,7 +38,7 @@ class CheckSubsetOp(IRDLOperation):
         return CheckSubsetOp(lhs, rhs, attr_dict)
 
     def print(self, printer: Printer) -> None:
-        printer.print(self.lhs, " of ", self.rhs)
+        printer.print(" ", self.lhs, " of ", self.rhs)
         printer.print_attr_dict(self.attributes)
 
 
