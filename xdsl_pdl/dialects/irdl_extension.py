@@ -40,7 +40,7 @@ class CheckSubsetOp(IRDLOperation):
 
     def print(self, printer: Printer) -> None:
         printer.print(" ", self.lhs, " of ", self.rhs)
-        printer.print_attr_dict(self.attributes)
+        printer.print_op_attributes(self.attributes)
 
 
 @irdl_op_definition
@@ -57,7 +57,7 @@ class YieldOp(IRDLOperation):
         attr_dict: DictionaryAttr | None = None,
     ):
         super().__init__(
-            operands=args,
+            operands=[args],
             attributes=attr_dict.data if attr_dict is not None else None,
         )
 
