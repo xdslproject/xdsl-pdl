@@ -1,4 +1,5 @@
 from __future__ import annotations
+from typing import Sequence
 
 from xdsl.irdl import (
     AttrSizedOperandSegments,
@@ -7,7 +8,7 @@ from xdsl.irdl import (
     region_def,
     var_operand_def,
 )
-from xdsl.ir import Dialect, Region
+from xdsl.ir import Dialect, Region, SSAValue
 
 from xdsl.dialects.irdl import AttributeType
 from xdsl.parser import DictionaryAttr, Parser
@@ -49,6 +50,16 @@ class YieldOp(IRDLOperation):
     args = var_operand_def(AttributeType())
 
     assembly_format = "attr-dict $args"
+
+    def __init__(
+        self,
+        args: Sequence[SSAValue],
+        attr_dict: DictionaryAttr | None = None,
+    ):
+        super().__init__(
+            operands=args,
+            attributes=attr_dict.data if attr_dict is not None else None,
+        )
 
 
 IRDLExtension = Dialect("irdl_ext", [CheckSubsetOp, YieldOp])
