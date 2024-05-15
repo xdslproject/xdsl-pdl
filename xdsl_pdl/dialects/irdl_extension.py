@@ -62,4 +62,23 @@ class YieldOp(IRDLOperation):
         )
 
 
-IRDLExtension = Dialect("irdl_ext", [CheckSubsetOp, YieldOp])
+@irdl_op_definition
+class EqOp(IRDLOperation):
+    name = "irdl_ext.eq"
+
+    args = var_operand_def(AttributeType())
+
+    assembly_format = "attr-dict $args"
+
+    def __init__(
+        self,
+        args: Sequence[SSAValue],
+        attr_dict: DictionaryAttr | None = None,
+    ):
+        super().__init__(
+            operands=[args],
+            attributes=attr_dict.data if attr_dict is not None else None,
+        )
+
+
+IRDLExtension = Dialect("irdl_ext", [CheckSubsetOp, YieldOp, EqOp])
