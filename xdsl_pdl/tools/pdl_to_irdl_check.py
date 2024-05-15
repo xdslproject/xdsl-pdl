@@ -13,12 +13,14 @@ from xdsl.rewriter import InsertPoint, Rewriter
 
 from xdsl.dialects.pdl import (
     PDL,
+    AttributeOp,
     OperandOp,
     OperationOp,
     PatternOp,
     ReplaceOp,
     ResultOp,
     RewriteOp,
+    TypeOp,
 )
 
 from xdsl.dialects.builtin import Builtin
@@ -103,6 +105,18 @@ def convert_pattern_to_check_subset(program: PatternOp) -> CheckSubsetOp:
     assert isinstance(root, OpResult)
 
     while (op := rewrite.body.ops.first) is not None:
+        if isinstance(op, AttributeOp):
+            op.detach()
+            if op.value_type:
+                assert isinstance(op.value_type, OpResult)
+                Rewriter.insert_op_after(op.value_type.owner, op)
+            else:
+                Rewriter.insert_op_before(root.owner, op)
+            continue
+        if isinstance(op, TypeOp):
+            op.detach()
+            Rewriter.insert_op_before(root.owner, op)
+            continue
         if isinstance(op, OperationOp):
             op.detach()
             Rewriter.insert_op_before(root.owner, op)
