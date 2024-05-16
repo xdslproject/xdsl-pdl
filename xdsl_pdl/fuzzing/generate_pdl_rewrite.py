@@ -17,7 +17,7 @@ from xdsl.dialects.pdl import (
 )
 from xdsl.dialects.builtin import IntAttr, IntegerAttr, IntegerType, StringAttr, i32
 
-from xdsl_pdl.pdltest import TestMatchOp, TestRewriteOp
+from xdsl_pdl.pdltest import TestMatchOp, TestRewriteOp, TestTerminatorOp
 
 i16 = IntegerType(16)
 
@@ -86,8 +86,11 @@ def _generate_random_matched_operation(ctx: _FuzzerContext) -> list[Operation]:
         new_type = TypeOp(i32)
         results.append(new_type.result)
         new_ops.extend([new_type])
-
-    op = OperationOp(TestMatchOp.name, None, operands, None, results)
+    # here
+    op_name = ctx.randgen.choices(
+        [TestMatchOp.name, TestTerminatorOp.name, None], weights=[0.9, 0.05, 0.05], k=1
+    )[0]
+    op = OperationOp(op_name, None, operands, None, results)
     new_ops.append(op)
     ctx.operations.append(op)
 
