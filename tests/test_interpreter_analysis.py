@@ -641,6 +641,102 @@ builtin.module {
     interpreter.run_op(pattern, ())
 
 
+@run_interpreter
+def test_replace_terminator(ctx: MLContext, interpreter: Interpreter):
+    """
+    This test checks that the replacement of a terminator op with a non-terminator
+    op is not allowed.
+    """
+
+    program = """
+builtin.module {
+  pdl.pattern : benefit(1) {
+    %type = pdl.type
+    %2 = pdl.operation "pdltest.terminator" -> (%type : !pdl.type)
+    pdl.rewrite %2 {
+      %new = pdl.operation "pdltest.rewriteop" -> (%type : !pdl.type)
+      pdl.replace %2 with %new
+    }
+  }
+}
+"""
+    parser = Parser(ctx=ctx, input=program)
+    module = parser.parse_op()
+    assert isinstance(module, ModuleOp)
+    pattern = module.body.ops.first
+    with pytest.raises(
+        PDLAnalysisAborted, match="Replacing a terminator with a non-terminator."
+    ):
+        interpreter.run_op(pattern, ())
+
+
+@run_interpreter
+def test_replace_terminator_with_values(ctx: MLContext, interpreter: Interpreter):
+    """
+    This test checks that the replacement of a terminator op with a non-terminator
+    op is not allowed.
+    """
+
+    program = """
+builtin.module {
+  pdl.pattern : benefit(1) {
+    %type = pdl.type
+    %2 = pdl.operation "pdltest.terminator" -> (%type : !pdl.type)
+    pdl.rewrite %2 {
+      %new = pdl.operation "pdltest.rewriteop" -> (%type : !pdl.type)
+      %new_res = pdl.result 0 of %new
+      pdl.replace %2 with (%new_res : !pdl.value)
+    }
+  }
+}
+"""
+    parser = Parser(ctx=ctx, input=program)
+    module = parser.parse_op()
+    assert isinstance(module, ModuleOp)
+    pattern = module.body.ops.first
+    with pytest.raises(
+        PDLAnalysisAborted, match="Replacing a terminator with a non-terminator."
+    ):
+        interpreter.run_op(pattern, ())
+
+
+@run_interpreter
+def test_erase_terminator(ctx: MLContext, interpreter: Interpreter):
+    """
+    This test checks that the erasure of a terminator op is not allowed.
+    """
+
+    program = """
+builtin.module {
+  pdl.pattern : benefit(1) {
+    %2 = pdl.operation "pdltest.terminator"
+    pdl.rewrite %2 {
+      pdl.erase %2
+    }
+  }
+}
+"""
+    parser = Parser(ctx=ctx, input=program)
+    module = parser.parse_op()
+    assert isinstance(module, ModuleOp)
+    pattern = module.body.ops.first
+    with pytest.raises(
+        PDLAnalysisAborted, match="Erasing a terminator is not allowed."
+    ):
+        interpreter.run_op(pattern, ())
+
+
+@run_interpreter
+def test_insert_after_terminator(ctx: MLContext, interpreter: Interpreter):
+    """
+    This test checks that ops cannot be inserted after a terminator op.
+    """
+    # Question: Is this even possible with insertion before the root op?
+    # This can never happen, as we always insert ops before the matched root op.
+    # New ops we insert can never be terminators, as we can not construct them
+    # (No way to specifiy successors)
+
+
 if __name__ == "__main__":
     for test in tests:
         test()

@@ -45,6 +45,8 @@ class UseCheckingStrictness(Enum):
     ASSUME_NO_USE_OUTSIDE = 1
 
 
+config = {"treat_wild_card_as_terminator": True}
+
 """
 Hacks to enable this analysis:
 - Enabled that a value association in the interpreter can be overwritten
@@ -199,6 +201,18 @@ class PDLAnalysisFunctions(InterpreterFunctions):
                     f"Value {value} still has {len(value.uses)} uses.",
                 )
 
+    def is_terminator(self, op: pdl.OperationOp | Op, interpreter: Interpreter) -> bool:
+        # This should be based on the Terminator interface. For this purpose
+        # that makes no difference though
+        if isinstance(op, Op):
+            return op.terminator
+        if config["treat_wild_card_as_terminator"]:
+            if op.opName is None:
+                return True
+        if op.opName is not None:
+            return "terminator" in op.opName.data
+        return False
+
     def remove_from_scope(
         self, interpreter: Interpreter, value: SSAValue | Value | Op
     ) -> None:
@@ -253,8 +267,10 @@ class PDLAnalysisFunctions(InterpreterFunctions):
     ) -> PythonValues:
         phase = self.get_state(interpreter, DataKeys.PHASE)
         if phase == Phase.REWRITING:
-            self.remove_from_scope(interpreter, op.op_value)
             erased_op: Op = self.get_value(interpreter, op.op_value)
+            if self.is_terminator(erased_op, interpreter):
+                raise PDLAnalysisAborted(op, "Erasing a terminator is not allowed.")
+            self.remove_from_scope(interpreter, op.op_value)
             self.get_state(interpreter, DataKeys.GENERATED_OPS).remove(erased_op)
 
         return ()
@@ -318,6 +334,7 @@ class PDLAnalysisFunctions(InterpreterFunctions):
                 ResultType(uses=init_uses(), type=type)
                 for type in args[len(op.attributeValueNames) + len(op.operand_values) :]
             ],
+            terminator=self.is_terminator(op, interpreter),
         )
         for operand in op.operand_values:
             self.get_value(interpreter, operand).uses.append(pdl_op)
@@ -504,6 +521,18 @@ class PDLAnalysisFunctions(InterpreterFunctions):
                 if op.repl_values
                 else repl_operation.result_types  # type: ignore
             )
+            if self.is_terminator(replaced_op, interpreter):
+                if repl_operation and not self.is_terminator(
+                    repl_operation, interpreter
+                ):
+                    raise PDLAnalysisAborted(
+                        op, "Replacing a terminator with a non-terminator."
+                    )
+                if repl_operation is None:
+                    raise PDLAnalysisAborted(
+                        op, "Replacing a terminator with a non-terminator."
+                    )
+
             # Check number of replacement values matches. If the replaced op has
             # no results this is considered legal in any case.
             # if len(replaced_op.result_types) > 0:
@@ -650,6 +679,7 @@ class Op:
     results_taken: list[Value] = field(default_factory=list)
     in_scope: bool = True
     matched: bool = False
+    terminator: bool = False
 
     def __post_init__(self) -> None:
         for i, result_type in enumerate(self.result_types):
