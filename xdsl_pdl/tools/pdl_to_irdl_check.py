@@ -21,6 +21,7 @@ from xdsl.pattern_rewriter import (
 from xdsl.dialects.pdl import (
     PDL,
     ApplyNativeConstraintOp,
+    ApplyNativeRewriteOp,
     AttributeOp,
     OperandOp,
     OperationOp,
@@ -122,11 +123,7 @@ def convert_pattern_to_check_subset(program: PatternOp) -> CheckSubsetOp:
             else:
                 Rewriter.insert_op_before(root.owner, op)
             continue
-        if isinstance(op, TypeOp):
-            op.detach()
-            Rewriter.insert_op_before(root.owner, op)
-            continue
-        if isinstance(op, OperationOp):
+        if isinstance(op, TypeOp | OperationOp | ApplyNativeRewriteOp):
             op.detach()
             Rewriter.insert_op_before(root.owner, op)
             continue
@@ -270,6 +267,25 @@ class PDLToIRDLOperationPattern(RewritePattern):
         rewriter.erase_matched_op()
 
 
+class PDLToIRDLNativeRewritePattern(RewritePattern):
+    """
+    Replace `pdl.native_rewrite` operations with our hardcoded implementation.
+    """
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: ApplyNativeRewriteOp, rewriter: PatternRewriter, /):
+        if op.constraint_name.data == "get_zero":
+            # We do not currently support the 0 part of the rewrite
+            # We only say it is an integer_attr with the given type
+            zero = irdl.AnyOp()
+            res = irdl.ParametricOp(
+                SymbolRefAttr("builtin", ["integer_attr"]), [zero.output, op.args[0]]
+            )
+            rewriter.replace_matched_op([zero, res])
+            return
+        raise Exception(f"Unknown native rewrite {op.constraint_name}")
+
+
 def convert_pdl_match_to_irdl_match(
     program: Operation, irdl_ops: dict[str, irdl.OperationOp]
 ):
@@ -284,6 +300,7 @@ def convert_pdl_match_to_irdl_match(
                 PDLToIRDLAttributePattern(),
                 PDLToIRDLNativeConstraintPattern(),
                 PDLToIRDLOperationPattern(irdl_ops),
+                PDLToIRDLNativeRewritePattern(),
             ]
         )
     )
