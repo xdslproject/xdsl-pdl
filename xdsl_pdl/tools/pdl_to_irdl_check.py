@@ -31,7 +31,7 @@ from xdsl.dialects.pdl import (
     TypeOp,
 )
 
-from xdsl.dialects.builtin import Builtin
+from xdsl.dialects.builtin import Builtin, SymbolRefAttr
 from xdsl.dialects.irdl import IRDL, DialectOp
 from xdsl.dialects import irdl
 from xdsl_pdl.dialects.irdl_extension import CheckSubsetOp, EqOp, IRDLExtension, YieldOp
@@ -194,8 +194,15 @@ class PDLToIRDLAttributePattern(RewritePattern):
             return
         # In the case of an untyped attribute, we can replace it with an `irdl.any`
         if op.value_type is not None:
+            value = irdl.AnyOp()
             rewriter.replace_matched_op(
-                irdl.ParametricOp("builtin.integer_attr", [op.value_type])
+                [
+                    value,
+                    irdl.ParametricOp(
+                        SymbolRefAttr("builtin", ["integer_attr"]),
+                        [value.output, op.value_type],
+                    ),
+                ]
             )
             return
         # Otherwise, it could by anything
@@ -331,8 +338,9 @@ def main():
     # This allows us to easily map the input values to the output values.
     add_missing_pdl_result(rewrite)
     check_subset = convert_pattern_to_check_subset(rewrite)
+    Rewriter.replace_op(rewrite, check_subset)
     convert_pdl_match_to_irdl_match(check_subset, irdl_ops)
-    print(check_subset)
+    print(program)
 
 
 if __name__ == "__main__":
