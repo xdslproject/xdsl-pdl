@@ -3,7 +3,7 @@ Create an SMT query to check if a group of IRDL
 variables represent a subset of other IRDL variables.
 """
 
-from typing import Any, Callable
+from typing import Any, Callable, Sequence
 from xdsl.traits import SymbolTable
 from xdsl.utils.hints import isa
 import z3
@@ -18,6 +18,7 @@ from xdsl.dialects.builtin import (
     StringAttr,
 )
 from xdsl.dialects.irdl import (
+    AllOfOp,
     AnyOfOp,
     AnyOp,
     AttributeOp,
@@ -53,6 +54,12 @@ def add_attribute_constructors_from_irdl(
             name,
             *[(f"{name}_arg_{i}", attribute_sort) for i in range(num_parameters)],
         )
+
+
+def create_z3_attribute(attribute_sort: Any, attr_name: str, *parameters: Any) -> Any:
+    if parameters:
+        return attribute_sort.__dict__[attr_name](*parameters)
+    return attribute_sort.__dict__[attr_name]
 
 
 def convert_attr_to_z3_attr(attr: Attribute, attribute_sort: Any) -> Any:
@@ -104,6 +111,14 @@ def get_constraint_as_z3(
             )
         )
         return
+    if isinstance(op, AllOfOp):
+        if not op.operands:
+            values_to_z3[op.output] = create_value(op.output)
+            return
+        values_to_z3[op.output] = values_to_z3[op.operands[0]]
+        for operand in op.operands[1:]:
+            add_constraint(values_to_z3[op.output] == values_to_z3[operand])
+        return
     if isinstance(op, IsOp):
         values_to_z3[op.output] = convert_attr_to_z3_attr(op.expected, attribute_sort)
         return
@@ -122,7 +137,9 @@ def get_constraint_as_z3(
             )
         values_to_z3[op.output] = create_value(op.output)
         add_constraint(
-            attribute_sort.__dict__["is_" + attribute_name](values_to_z3[op.output])
+            create_z3_attribute(
+                attribute_sort, "is_" + attribute_name, values_to_z3[op.output]
+            )
         )
         return
     if isinstance(op, ParametricOp):
@@ -135,7 +152,9 @@ def get_constraint_as_z3(
         parameters = [values_to_z3[arg] for arg in op.args]
         attribute_name = dialect_def.sym_name.data + "." + base_attr_def.sym_name.data
 
-        values_to_z3[op.output] = attribute_sort.__dict__[attribute_name](*parameters)
+        values_to_z3[op.output] = create_z3_attribute(
+            attribute_sort, attribute_name, *parameters
+        )
         return
     if isinstance(op, EqOp):
         val0 = values_to_z3[op.args[0]]

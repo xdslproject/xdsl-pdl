@@ -24,9 +24,11 @@ from xdsl.dialects.pdl import (
     TypeOp,
 )
 
-from xdsl.dialects.builtin import IntegerType, SymbolRefAttr, ModuleOp
+from xdsl.dialects.builtin import IntegerType, SymbolRefAttr, ModuleOp, UnitAttr
 from xdsl.dialects import irdl
+from xdsl.traits import SymbolTable
 from xdsl.utils.hints import isa
+from z3 import Symbol
 from xdsl_pdl.dialects.irdl_extension import CheckSubsetOp, EqOp, YieldOp
 
 
@@ -332,6 +334,100 @@ def convert_pdl_match_to_irdl_match(
     walker.rewrite_op(program)
 
 
+def get_op_ref_outside_dialect(
+    op_ref: SymbolRefAttr, location: Operation
+) -> SymbolRefAttr:
+    """Get an operation reference outside of the dialect."""
+    base_def = SymbolTable.lookup_symbol(location, op_ref)
+    assert base_def is not None
+    assert isinstance(base_def, irdl.AttributeOp | irdl.TypeOp)
+    base_def_dialect = base_def.parent_op()
+    assert isinstance(base_def_dialect, irdl.DialectOp)
+    new_ref = SymbolRefAttr(base_def_dialect.sym_name, [base_def.sym_name])
+    return new_ref
+
+
+def create_param_attr_constraint_from_definition(
+    attr_def: irdl.TypeOp | irdl.AttributeOp,
+    rewriter: PatternRewriter,
+) -> irdl.ParametricOp:
+    """Clone the constraints on an attribute parameters at a given location."""
+    cloned_attr_def = attr_def.clone()
+    parameters = []
+    for cloned_op, op in zip(
+        cloned_attr_def.body.walk(), attr_def.body.walk(), strict=True
+    ):
+        cloned_op.detach()
+        if isinstance(cloned_op, irdl.BaseOp) and cloned_op.base_ref is not None:
+            cloned_op.base_ref = get_op_ref_outside_dialect(cloned_op.base_ref, op)
+        if isinstance(cloned_op, irdl.ParametricOp):
+            cloned_op.base_type = get_op_ref_outside_dialect(cloned_op.base_type, op)
+        if isinstance(cloned_op, irdl.ParametersOp):
+            parameters = cloned_op.args
+            cloned_op.erase()
+            continue
+        rewriter.insert_op_before_matched_op(cloned_op)
+    cloned_attr_def.erase()
+
+    parent_dialect = attr_def.parent_op()
+    assert isinstance(parent_dialect, irdl.DialectOp)
+
+    param_op = irdl.ParametricOp(
+        SymbolRefAttr(parent_dialect.sym_name, [attr_def.sym_name]), parameters
+    )
+    rewriter.insert_op_before_matched_op(param_op)
+    return param_op
+
+
+@dataclass
+class EmbedIRDLAttrPattern(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(
+        self, op: irdl.BaseOp | irdl.ParametricOp, rewriter: PatternRewriter, /
+    ):
+        if "processed" in op.attributes:
+            return
+        if isinstance(op, irdl.BaseOp):
+            # We cannot unfold attributes that are not from the IRDL module
+            if op.base_name is not None:
+                return
+            assert op.base_ref is not None
+            attr_def = SymbolTable.lookup_symbol(op, op.base_ref)
+            assert attr_def is not None
+            assert isinstance(attr_def, irdl.AttributeOp | irdl.TypeOp)
+            param_op = create_param_attr_constraint_from_definition(attr_def, rewriter)
+            param_op.attributes["processed"] = UnitAttr()
+            op.attributes["processed"] = UnitAttr()
+            cloned_op = op.clone()
+            rewriter.insert_op_before_matched_op(cloned_op)
+            rewriter.replace_matched_op(
+                irdl.AllOfOp([cloned_op.output, param_op.output])
+            )
+            return
+
+        attr_def = SymbolTable.lookup_symbol(op, op.base_type)
+        assert attr_def is not None
+        assert isinstance(attr_def, irdl.AttributeOp | irdl.TypeOp)
+        param_op = create_param_attr_constraint_from_definition(attr_def, rewriter)
+        param_op.attributes["processed"] = UnitAttr()
+        op.attributes["processed"] = UnitAttr()
+        cloned_op = op.clone()
+        rewriter.insert_op_before_matched_op(cloned_op)
+        rewriter.replace_matched_op(irdl.AllOfOp([cloned_op.output, param_op.output]))
+        return
+
+
+def embed_irdl_attr_verifiers(op: Operation):
+    walker = PatternRewriteWalker(
+        GreedyRewritePatternApplier(
+            [
+                EmbedIRDLAttrPattern(),
+            ]
+        )
+    )
+    walker.rewrite_op(op)
+
+
 class PDLToIRDLPass(ModulePass):
     def apply(self, ctx: MLContext, op: ModuleOp):
         # Grab the rewrite operation which should be the last one
@@ -363,3 +459,5 @@ class PDLToIRDLPass(ModulePass):
 
         # Convert the remaining PDL operations to IRDL operations
         convert_pdl_match_to_irdl_match(check_subset, irdl_ops)
+
+        embed_irdl_attr_verifiers(check_subset)
