@@ -1,5 +1,7 @@
 #xdsl==0.15.0
-xdsl @ git+https://github.com/xdslproject/xdsl@ed1174c03e5af2f7a6371fe4f950ab9194a7d536
+xdsl @ git+https://github.com/xdslproject/xdsl@eb3b749eebea63451f2322e97b7011f1521cbc5d
 pre-commit
 black
 tabulate
+filecheck
+z3-solver == 4.13.0.0
