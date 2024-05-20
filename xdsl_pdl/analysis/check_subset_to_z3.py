@@ -1,9 +1,8 @@
 """
-Check if a group of IRDL variables represent a subset of other IRDL variables.
+Create an SMT query to check if a group of IRDL
+variables represent a subset of other IRDL variables.
 """
 
-import argparse
-import sys
 from typing import Any, Callable
 from xdsl.traits import SymbolTable
 from xdsl.utils.hints import isa
@@ -11,28 +10,23 @@ import z3
 
 from xdsl.dialects.builtin import (
     AnyIntegerAttr,
-    Builtin,
     IntAttr,
-    IntegerAttr,
     IntegerType,
 )
-from xdsl.dialects.func import Func
 from xdsl.dialects.irdl import (
-    IRDL,
     AnyOfOp,
     AnyOp,
     AttributeOp,
     BaseOp,
     IsOp,
-    ParametersOp,
     ParametricOp,
     TypeOp,
     DialectOp,
 )
 
-from xdsl.ir import Attribute, MLContext, Operation, SSAValue
-from xdsl.parser import IndexType, ModuleOp, Parser
-from xdsl_pdl.dialects.irdl_extension import CheckSubsetOp, EqOp, IRDLExtension, YieldOp
+from xdsl.ir import Attribute, Operation, SSAValue
+from xdsl.parser import IndexType, ModuleOp
+from xdsl_pdl.dialects.irdl_extension import CheckSubsetOp, EqOp, YieldOp
 
 
 def add_attribute_constructors_from_irdl(
@@ -134,36 +128,7 @@ def get_constraint_as_z3(
     assert False, f"Unsupported op {op.name}"
 
 
-def main():
-    arg_parser = argparse.ArgumentParser(
-        prog="check-irdl-subset",
-        description="Check if a group of IRDL variables represent a "
-        "subset of other IRDL variables.",
-    )
-    arg_parser.add_argument(
-        "input_file", type=str, nargs="?", help="path to input file"
-    )
-    args = arg_parser.parse_args()
-
-    # Setup the xDSL context
-    ctx = MLContext()
-    ctx.load_dialect(Builtin)
-    ctx.load_dialect(Func)
-    ctx.load_dialect(IRDL)
-    ctx.load_dialect(IRDLExtension)
-
-    # Grab the input program from the command line or a file
-    if args.input_file is None:
-        f = sys.stdin
-    else:
-        f = open(args.input_file)
-
-    #
-    with f:
-        program = Parser(ctx, f.read()).parse_module()
-
-    solver = z3.Solver()
-
+def check_subset_to_z3(program: ModuleOp, solver: z3.Solver):
     assert isinstance(main := program.ops.last, CheckSubsetOp)
 
     # The Attribute datatype is an union of all possible attributes found in the
@@ -227,15 +192,3 @@ def main():
     for lhs_arg, rhs_arg in zip(lhs_yield.args, rhs_yield.args):
         constraints.append(values_to_z3[lhs_arg] == values_to_z3[rhs_arg])
     solver.add(z3.Not(z3.Exists(constants, z3.And(constraints))))
-
-    print("SMT program:")
-    print(solver)
-    if solver.check() == z3.sat:
-        print("sat: lhs is not a subset of rhs")
-        print("model: ", solver.model())
-    else:
-        print("unsat: lhs is a subset of rhs")
-
-
-if "__main__" == __name__:
-    main()

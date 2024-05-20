@@ -1,4 +1,4 @@
-// RUN: check-irdl-subset %s | filecheck %s
+// RUN: test-check-irdl-subset %s | filecheck %s
 
 // Check that int is a subset of int | vec
 

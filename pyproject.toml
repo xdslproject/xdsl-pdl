@@ -13,7 +13,7 @@ generate-pdl-rewrite = "xdsl_pdl.tools.generate_pdl_rewrite:main"
 generate-pdl-matches = "xdsl_pdl.tools.generate_pdl_matches:main"
 analyze-pdl-rewrite = "xdsl_pdl.tools.analyze_pdl_rewrite:main"
 generate-table = "xdsl_pdl.tools.generate_table:main"
-check-irdl-subset = "xdsl_pdl.tools.check_irdl_subset:main"
+test-check-irdl-subset = "xdsl_pdl.tools.test_check_irdl_subset:main"
 test-pdl-to-irdl-check = "xdsl_pdl.tools.test_pdl_to_irdl_check:main"
 
 [build-system]
