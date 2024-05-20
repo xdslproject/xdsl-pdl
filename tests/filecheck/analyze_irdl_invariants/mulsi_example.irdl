@@ -1,9 +1,18 @@
 irdl.dialect @builtin {
     irdl.type @index
 
+    irdl.attribute @signedness {
+        %signless = irdl.is "signless"
+        %signed = irdl.is "signed"
+        %unsigned = irdl.is "unsigned"
+        %value = irdl.any_of(%signless, %signed, %unsigned)
+        irdl.parameters(%value)
+    }
+
     irdl.type @integer_type {
         %bitwidth = irdl.base "#int"
-        irdl.parameters(%bitwidth)
+        %signedness = irdl.base @signedness
+        irdl.parameters(%bitwidth, %signedness)
     }
 
     irdl.attribute @integer_attr {
