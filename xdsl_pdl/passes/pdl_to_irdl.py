@@ -194,10 +194,6 @@ class PDLToIRDLAttributePattern(RewritePattern):
             return
         # In the case of a typed attribute, we assume that it is an integer attribute
         if op.value_type is not None:
-            if not isinstance(op.value_type, IntegerType):
-                raise Exception(
-                    "Only typed attributes with integer types are supported"
-                )
             value = irdl.AnyOp()
             if op.output.name_hint is not None:
                 value.output.name_hint = op.output.name_hint + "_value"
