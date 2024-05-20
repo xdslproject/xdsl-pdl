@@ -11,7 +11,11 @@ import z3
 from xdsl.dialects.builtin import (
     AnyIntegerAttr,
     IntAttr,
+    IntegerAttr,
     IntegerType,
+    Signedness,
+    SignednessAttr,
+    StringAttr,
 )
 from xdsl.dialects.irdl import (
     AnyOfOp,
@@ -56,11 +60,24 @@ def convert_attr_to_z3_attr(attr: Attribute, attribute_sort: Any) -> Any:
         return attribute_sort.__dict__["builtin.index"]
     if isinstance(attr, IntegerType):
         bitwidth = convert_attr_to_z3_attr(attr.width, attribute_sort)
-        return attribute_sort.__dict__["builtin.integer_type"](bitwidth)
+        signedness = convert_attr_to_z3_attr(attr.signedness, attribute_sort)
+        return attribute_sort.__dict__["builtin.integer_type"](bitwidth, signedness)
+    if isinstance(attr, SignednessAttr):
+        match attr.data:
+            case Signedness.SIGNLESS:
+                opcode = "signless"
+            case Signedness.SIGNED:
+                opcode = "signed"
+            case Signedness.UNSIGNED:
+                opcode = "unsigned"
+        opcode_attr = convert_attr_to_z3_attr(StringAttr(opcode), attribute_sort)
+        return attribute_sort.__dict__["builtin.signedness"](opcode_attr)
     if isa(attr, AnyIntegerAttr):
         value = convert_attr_to_z3_attr(attr.value, attribute_sort)
         type = convert_attr_to_z3_attr(attr.type, attribute_sort)
         return attribute_sort.__dict__["builtin.integer_attr"](value, type)
+    if isinstance(attr, StringAttr):
+        return attribute_sort.__dict__["string"](z3.StringVal(attr.data))
     if isinstance(attr, IntAttr):
         return attribute_sort.__dict__["int"](attr.data)
     raise Exception(f"Unknown attribute {attr}")
@@ -92,11 +109,12 @@ def get_constraint_as_z3(
         return
     if isinstance(op, BaseOp):
         if op.base_name is not None:
-            attribute_name = op.base_name.data
+            attribute_name = op.base_name.data[1:]
         else:
             assert op.base_ref is not None
             base_attr_def = SymbolTable.lookup_symbol(op, op.base_ref)
-            assert isinstance(base_attr_def, AttributeOp | TypeOp)
+            if not isinstance(base_attr_def, AttributeOp | TypeOp):
+                raise Exception(f"Cannot find symbol {op.base_ref}")
             dialect_def = base_attr_def.parent_op()
             assert isinstance(dialect_def, DialectOp)
             attribute_name = (
@@ -109,7 +127,8 @@ def get_constraint_as_z3(
         return
     if isinstance(op, ParametricOp):
         base_attr_def = SymbolTable.lookup_symbol(op, op.base_type)
-        assert isinstance(base_attr_def, AttributeOp | TypeOp)
+        if not isinstance(base_attr_def, AttributeOp | TypeOp):
+            raise Exception(f"Cannot find symbol {op.base_type}")
         dialect_def = base_attr_def.parent_op()
         assert isinstance(dialect_def, DialectOp)
 
@@ -138,9 +157,10 @@ def check_subset_to_z3(program: ModuleOp, solver: z3.Solver):
     # int correspond to an integer value. It is used for an integer bitwidth for
     # instance.
     attribute_sort: Any = z3.Datatype("Attribute")
-    add_attribute_constructors_from_irdl(attribute_sort, program)
     attribute_sort.declare("other", ("other_arg_0", z3.IntSort()))
-    attribute_sort.declare("int", ("other_arg_0", z3.IntSort()))
+    attribute_sort.declare("int", ("int_arg_0", z3.IntSort()))
+    attribute_sort.declare("string", ("string_arg_0", z3.StringSort()))
+    add_attribute_constructors_from_irdl(attribute_sort, program)
     attribute_sort = attribute_sort.create()
 
     # Mapping from IRDL attribute values to their corresponding z3 value
