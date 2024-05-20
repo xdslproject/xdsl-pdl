@@ -1,3 +1,5 @@
+// RUN: test-pdl-to-irdl-check %s | filecheck %s
+
 irdl.dialect @builtin {
     irdl.type @index
 
@@ -44,3 +46,23 @@ pdl.pattern @AddCommute : benefit(0) {
         pdl.replace %op with %new_op
     }
 }
+
+// CHECK:      irdl_ext.check_subset {
+// CHECK-NEXT:   %0 = irdl.any
+// CHECK-NEXT:   %1 = irdl.base @builtin::@index {"base_ref" = @builtin::@index}
+// CHECK-NEXT:   %2 = irdl.base @builtin::@integer_type {"base_ref" = @builtin::@integer_type}
+// CHECK-NEXT:   %3 = irdl.any_of(%1, %2)
+// CHECK-NEXT:   irdl_ext.eq %3, %0
+// CHECK-NEXT:   irdl_ext.eq %3, %0
+// CHECK-NEXT:   irdl_ext.eq %3, %0
+// CHECK-NEXT:   irdl_ext.yield %0, %0, %0
+// CHECK-NEXT: } of {
+// CHECK-NEXT:   %4 = irdl.any
+// CHECK-NEXT:   %5 = irdl.base @builtin::@index {"base_ref" = @builtin::@index}
+// CHECK-NEXT:   %6 = irdl.base @builtin::@integer_type {"base_ref" = @builtin::@integer_type}
+// CHECK-NEXT:   %7 = irdl.any_of(%5, %6)
+// CHECK-NEXT:   irdl_ext.eq %7, %4
+// CHECK-NEXT:   irdl_ext.eq %7, %4
+// CHECK-NEXT:   irdl_ext.eq %7, %4
+// CHECK-NEXT:   irdl_ext.yield %4, %4, %4
+// CHECK-NEXT: }

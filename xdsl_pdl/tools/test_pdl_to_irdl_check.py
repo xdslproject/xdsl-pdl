@@ -46,7 +46,8 @@ def main():
         program = Parser(ctx, f.read()).parse_module()
 
     PDLToIRDLPass().apply(ctx, program)
-    return
+
+    print(program)
 
 
 if __name__ == "__main__":
