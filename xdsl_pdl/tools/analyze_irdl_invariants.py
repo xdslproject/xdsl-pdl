@@ -18,6 +18,7 @@ from xdsl.dialects.builtin import (
 )
 from xdsl.dialects.irdl import IRDL
 from xdsl.dialects.pdl import PDL
+from xdsl_pdl.passes.optimize_irdl import OptimizeIRDL
 from xdsl_pdl.passes.pdl_to_irdl import PDLToIRDLPass
 
 
@@ -29,6 +30,7 @@ def main():
     )
     arg_parser.add_argument("input_file", type=str, help="path to input file")
     arg_parser.add_argument("irdl_file", type=str, help="path to IRDL file")
+    arg_parser.add_argument("--debug", action="store_true", help="enable debug mode")
     args = arg_parser.parse_args()
 
     # Setup the xDSL context
@@ -52,6 +54,10 @@ def main():
     )
 
     PDLToIRDLPass().apply(ctx, program)
+    OptimizeIRDL().apply(ctx, program)
+    if args.debug:
+        print("Converted IRDL program:")
+        print(program)
     solver = z3.Solver()
     check_subset_to_z3(program, solver)
 

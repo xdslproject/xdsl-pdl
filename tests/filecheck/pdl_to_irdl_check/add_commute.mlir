@@ -47,22 +47,17 @@ pdl.pattern @AddCommute : benefit(0) {
     }
 }
 
-// CHECK:      irdl_ext.check_subset {
-// CHECK-NEXT:     %match_t = irdl.any
-// CHECK-NEXT:     %match_op_index = irdl.base @builtin::@index {"base_ref" = @builtin::@index}
-// CHECK-NEXT:     %match_op_integer = irdl.base @builtin::@integer_type {"base_ref" = @builtin::@integer_type}
-// CHECK-NEXT:     %match_op_t = irdl.any_of(%match_op_index, %match_op_integer)
-// CHECK-NEXT:     irdl_ext.eq %match_op_t, %match_t
-// CHECK-NEXT:     irdl_ext.eq %match_op_t, %match_t
-// CHECK-NEXT:     irdl_ext.eq %match_op_t, %match_t
-// CHECK-NEXT:     irdl_ext.yield %match_t, %match_t, %match_t
-// CHECK-NEXT:   } of {
-// CHECK-NEXT:     %rewrite_t = irdl.any
-// CHECK-NEXT:     %rewrite_new_op_index = irdl.base @builtin::@index {"base_ref" = @builtin::@index}
-// CHECK-NEXT:     %rewrite_new_op_integer = irdl.base @builtin::@integer_type {"base_ref" = @builtin::@integer_type}
-// CHECK-NEXT:     %rewrite_new_op_t = irdl.any_of(%rewrite_new_op_index, %rewrite_new_op_integer)
-// CHECK-NEXT:     irdl_ext.eq %rewrite_new_op_t, %rewrite_t
-// CHECK-NEXT:     irdl_ext.eq %rewrite_new_op_t, %rewrite_t
-// CHECK-NEXT:     irdl_ext.eq %rewrite_new_op_t, %rewrite_t
-// CHECK-NEXT:     irdl_ext.yield %rewrite_t, %rewrite_t, %rewrite_t
-// CHECK-NEXT:   }
+// CHECK:       irdl_ext.check_subset {
+// CHECK-NEXT:    %match_op_index = irdl.parametric @builtin::@index<>
+// CHECK-NEXT:    %0 = irdl.base "#int" {"base_name" = "#int"}
+// CHECK-NEXT:    %match_op_integer = irdl.parametric @builtin::@integer_type<%0>
+// CHECK-NEXT:    %match_op_t = irdl.any_of(%match_op_index, %match_op_integer)
+// CHECK-NEXT:    irdl_ext.yield %match_op_t, %match_op_t, %match_op_t
+// CHECK-NEXT:  } of {
+// CHECK-NEXT:    %rewrite_new_op_index = irdl.parametric @builtin::@index<>
+// CHECK-NEXT:    %1 = irdl.base "#int" {"base_name" = "#int"}
+// CHECK-NEXT:    %rewrite_new_op_integer = irdl.parametric @builtin::@integer_type<%1>
+// CHECK-NEXT:    %rewrite_new_op_t = irdl.any_of(%rewrite_new_op_index, %rewrite_new_op_integer)
+// CHECK-NEXT:    irdl_ext.yield %rewrite_new_op_t, %rewrite_new_op_t, %rewrite_new_op_t
+// CHECK-NEXT:  }
+

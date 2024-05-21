@@ -15,6 +15,7 @@ from xdsl.dialects.builtin import Builtin
 from xdsl.dialects.irdl import IRDL
 from xdsl_pdl.dialects.irdl_extension import IRDLExtension
 from xdsl_pdl.passes.pdl_to_irdl import PDLToIRDLPass
+from xdsl_pdl.passes.optimize_irdl import OptimizeIRDL
 
 
 def main():
@@ -46,6 +47,7 @@ def main():
         program = Parser(ctx, f.read()).parse_module()
 
     PDLToIRDLPass().apply(ctx, program)
+    OptimizeIRDL().apply(ctx, program)
 
     print(program)
 
