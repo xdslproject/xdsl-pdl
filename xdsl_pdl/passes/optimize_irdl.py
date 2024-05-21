@@ -1,9 +1,9 @@
+from typing import TypeAlias
 from xdsl.parser import SymbolRefAttr
 from xdsl.passes import ModulePass
 
-from xdsl.ir import MLContext, Operation, SSAValue, Use
+from xdsl.ir import MLContext, Operation, SSAValue
 from xdsl.dialects import irdl
-from xdsl.printer import Printer
 from xdsl.rewriter import InsertPoint, Rewriter
 from xdsl.traits import IsTerminator
 from xdsl_pdl.dialects import irdl_extension
@@ -16,15 +16,49 @@ from xdsl.pattern_rewriter import (
     op_type_rewrite_pattern,
 )
 
+BaseInfo: TypeAlias = set[SymbolRefAttr | str] | None
 
-def all_of_has_base_of_type(op: irdl.AllOfOp, base_type: SymbolRefAttr) -> int | None:
-    """Return the index of the first argument of `op` that is a `BaseOp` with the given `base_type`."""
-    for index, arg in enumerate(op.args):
-        if not isinstance(arg.owner, irdl.BaseOp):
-            continue
-        if arg.owner.base_ref == base_type:
-            return index
-    return None
+
+def meet_bases(bases_lhs: BaseInfo, bases_rhs: BaseInfo) -> BaseInfo:
+    if bases_lhs is None:
+        return bases_rhs
+    if bases_rhs is None:
+        return bases_lhs
+    return bases_lhs & bases_rhs
+
+
+def join_bases(bases_lhs: BaseInfo, bases_rhs: BaseInfo) -> BaseInfo:
+    if bases_lhs is None or bases_rhs is None:
+        return None
+    return bases_lhs | bases_rhs
+
+
+def get_bases(value: SSAValue) -> set[SymbolRefAttr | str] | None:
+    if not isinstance(value.owner, Operation):
+        return None
+    op = value.owner
+    if isinstance(op, irdl.BaseOp):
+        if op.base_ref is not None:
+            return {op.base_ref}
+        assert op.base_name is not None
+        return {op.base_name.data}
+    if isinstance(op, irdl.ParametricOp):
+        return {op.base_type}
+    if isinstance(op, irdl.AnyOp):
+        return None
+    if isinstance(op, irdl.AllOfOp):
+        bases: BaseInfo = None
+        for arg in op.args:
+            bases = meet_bases(bases, get_bases(arg))
+        return bases
+    if isinstance(op, irdl.AnyOfOp):
+        bases: BaseInfo = None
+        for arg in op.args:
+            bases = join_bases(bases, get_bases(arg))
+        return bases
+    if isinstance(op, irdl.IsOp):
+        # TODO: Add support for known types
+        return None
 
 
 class RemoveUnusedOpPattern(RewritePattern):
@@ -44,6 +78,14 @@ class AllOfSinglePattern(RewritePattern):
             return
         if len(op.args) == 0:
             rewriter.replace_matched_op(irdl.AnyOp())
+            return
+
+
+class AnyOfSinglePattern(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: irdl.AnyOfOp, rewriter: PatternRewriter, /):
+        if len(op.args) == 1:
+            rewriter.replace_matched_op([], [op.args[0]])
             return
 
 
@@ -170,6 +212,17 @@ class AllOfNestedPattern(RewritePattern):
             return
 
 
+class AnyOfNestedPattern(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: irdl.AnyOfOp, rewriter: PatternRewriter, /):
+        for index, arg in enumerate(op.args):
+            if not isinstance(arg.owner, irdl.AnyOfOp):
+                continue
+            new_args = [*op.args[:index], *arg.owner.args, *op.args[index + 1 :]]
+            rewriter.replace_matched_op(irdl.AnyOfOp(new_args))
+            return
+
+
 class RemoveEqOpPattern(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: irdl_extension.EqOp, rewriter: PatternRewriter, /):
@@ -227,6 +280,32 @@ class RemoveEqOpPattern(RewritePattern):
             ]
 
 
+class NestAllOfInAnyOfPattern(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: irdl.AllOfOp, rewriter: PatternRewriter, /):
+        for index, arg in enumerate(op.args):
+            if not isinstance(arg.owner, irdl.AnyOfOp):
+                continue
+            new_all_ofs: list[irdl.AllOfOp] = []
+            for any_of_arg in arg.owner.args:
+                new_all_ofs.append(
+                    irdl.AllOfOp([*op.args[:index], any_of_arg, *op.args[index + 1 :]])
+                )
+            rewriter.insert_op_before_matched_op(new_all_ofs)
+            rewriter.replace_matched_op(
+                irdl.AnyOfOp([new_all_of.output for new_all_of in new_all_ofs])
+            )
+            return
+
+
+class RemoveAllOfContradictionPatterns(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: irdl.AllOfOp, rewriter: PatternRewriter, /):
+        bases = get_bases(op.output)
+        if bases == set():
+            rewriter.replace_matched_op(irdl.AnyOfOp([]))
+
+
 class RemoveDuplicateMatchOpPattern(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(
@@ -275,6 +354,7 @@ class OptimizeIRDL(ModulePass):
                 [
                     RemoveUnusedOpPattern(),
                     AllOfSinglePattern(),
+                    AnyOfSinglePattern(),
                     AllOfIsPattern(),
                     AllOfAnyPattern(),
                     AllOfBaseBasePattern(),
@@ -283,6 +363,9 @@ class OptimizeIRDL(ModulePass):
                     AllOfIdenticalPattern(),
                     RemoveEqOpPattern(),
                     AllOfNestedPattern(),
+                    AnyOfNestedPattern(),
+                    NestAllOfInAnyOfPattern(),
+                    RemoveAllOfContradictionPatterns(),
                     RemoveDuplicateMatchOpPattern(),
                 ]
             )
