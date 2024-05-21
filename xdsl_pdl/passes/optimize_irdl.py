@@ -3,7 +3,9 @@ from xdsl.passes import ModulePass
 
 from xdsl.ir import MLContext, Operation, SSAValue, Use
 from xdsl.dialects import irdl
-from xdsl.rewriter import InsertPoint
+from xdsl.printer import Printer
+from xdsl.rewriter import InsertPoint, Rewriter
+from xdsl.traits import IsTerminator
 from xdsl_pdl.dialects import irdl_extension
 from xdsl.dialects.builtin import ModuleOp
 from xdsl.pattern_rewriter import (
@@ -225,8 +227,49 @@ class RemoveEqOpPattern(RewritePattern):
             ]
 
 
+class RemoveDuplicateMatchOpPattern(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(
+        self, op: irdl_extension.CheckSubsetOp, rewriter: PatternRewriter, /
+    ):
+        for block in [op.lhs.block, op.rhs.block]:
+            match_ops: list[irdl_extension.MatchOp] = []
+            for match_op in block.ops:
+                if isinstance(match_op, irdl_extension.MatchOp):
+                    match_ops.append(match_op)
+
+            # Detach the match operations
+            for match_op in match_ops:
+                match_op.detach()
+
+            # Deduplicate them
+            dedup_match_ops: list[irdl_extension.MatchOp | None] = list(match_ops)
+            for index, match_op in enumerate(dedup_match_ops):
+                if match_op is None:
+                    continue
+                for index2, match_op2 in list(enumerate(dedup_match_ops))[index + 1 :]:
+                    if match_op2 is None:
+                        continue
+                    if match_op.arg == match_op2.arg:
+                        match_op2.erase()
+                        dedup_match_ops[index2] = None
+
+            deduped_match_ops = [
+                match_op for match_op in dedup_match_ops if match_op is not None
+            ]
+            if block.ops.last is not None and block.ops.last.has_trait(IsTerminator):
+                Rewriter.insert_ops_at_location(
+                    deduped_match_ops, InsertPoint.before(block.ops.last)
+                )
+            else:
+                Rewriter.insert_ops_at_location(
+                    deduped_match_ops, InsertPoint.at_end(block)
+                )
+
+
 class OptimizeIRDL(ModulePass):
     def apply(self, ctx: MLContext, op: ModuleOp):
+
         walker = PatternRewriteWalker(
             GreedyRewritePatternApplier(
                 [
@@ -240,6 +283,7 @@ class OptimizeIRDL(ModulePass):
                     AllOfIdenticalPattern(),
                     RemoveEqOpPattern(),
                     AllOfNestedPattern(),
+                    RemoveDuplicateMatchOpPattern(),
                 ]
             )
         )

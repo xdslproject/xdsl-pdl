@@ -2,13 +2,13 @@ from __future__ import annotations
 from typing import Sequence
 
 from xdsl.irdl import (
-    AttrSizedOperandSegments,
     IRDLOperation,
     irdl_op_definition,
+    operand_def,
     region_def,
     var_operand_def,
 )
-from xdsl.ir import Dialect, Region, SSAValue
+from xdsl.ir import Dialect, IsTerminator, Region, SSAValue
 
 from xdsl.dialects.irdl import AttributeType
 from xdsl.parser import DictionaryAttr, Parser
@@ -44,10 +44,31 @@ class CheckSubsetOp(IRDLOperation):
 
 
 @irdl_op_definition
+class MatchOp(IRDLOperation):
+    name = "irdl_ext.match"
+
+    arg = operand_def(AttributeType())
+
+    assembly_format = "attr-dict $arg"
+
+    def __init__(
+        self,
+        arg: SSAValue,
+        attr_dict: DictionaryAttr | None = None,
+    ):
+        super().__init__(
+            operands=[arg],
+            attributes=attr_dict.data if attr_dict is not None else None,
+        )
+
+
+@irdl_op_definition
 class YieldOp(IRDLOperation):
     name = "irdl_ext.yield"
 
     args = var_operand_def(AttributeType())
+
+    traits = frozenset({IsTerminator()})
 
     assembly_format = "attr-dict $args"
 
@@ -81,4 +102,4 @@ class EqOp(IRDLOperation):
         )
 
 
-IRDLExtension = Dialect("irdl_ext", [CheckSubsetOp, YieldOp, EqOp])
+IRDLExtension = Dialect("irdl_ext", [CheckSubsetOp, MatchOp, YieldOp, EqOp])

@@ -29,7 +29,7 @@ from xdsl.dialects import irdl
 from xdsl.traits import SymbolTable
 from xdsl.utils.hints import isa
 from z3 import Symbol
-from xdsl_pdl.dialects.irdl_extension import CheckSubsetOp, EqOp, YieldOp
+from xdsl_pdl.dialects.irdl_extension import CheckSubsetOp, EqOp, MatchOp, YieldOp
 
 
 def add_missing_pdl_result(program: PatternOp):
@@ -270,6 +270,11 @@ class PDLToIRDLOperationPattern(RewritePattern):
         for irdl_operand, pdl_operand in [*operand_matches, *results_matches]:
             merge_op = EqOp([irdl_operand, pdl_operand])
             rewriter.insert_op_before_matched_op(merge_op)
+
+            # Mark irdl_operand as matched.
+            # This ensures that the constraint will not be deleted, and will match
+            # an actual attribute (instead of holding no value).
+            rewriter.insert_op_before_matched_op(MatchOp(irdl_operand))
 
         for uses in list(op.op.uses):
             if not isinstance(uses.operation, ResultOp):
