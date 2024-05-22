@@ -10,8 +10,8 @@ import z3
 
 from xdsl.dialects.builtin import (
     AnyIntegerAttr,
+    ArrayAttr,
     IntAttr,
-    IntegerAttr,
     IntegerType,
     Signedness,
     SignednessAttr,
@@ -108,16 +108,21 @@ def get_constraint_as_z3(
                     values_to_z3[op.output] == values_to_z3[operand]
                     for operand in op.operands
                 ]
+                + [values_to_z3[op.output] == attribute_sort.unassigned]
             )
         )
         return
     if isinstance(op, AllOfOp):
-        if not op.operands:
-            values_to_z3[op.output] = create_value(op.output)
-            return
-        values_to_z3[op.output] = values_to_z3[op.operands[0]]
-        for operand in op.operands[1:]:
-            add_constraint(values_to_z3[op.output] == values_to_z3[operand])
+        values_to_z3[op.output] = create_value(op.output)
+        and_constraint = z3.And(
+            [
+                values_to_z3[op.output] == values_to_z3[operand]
+                for operand in op.operands
+            ]
+        )
+        add_constraint(
+            z3.Or(and_constraint, values_to_z3[op.output] == attribute_sort.unassigned)
+        )
         return
     if isinstance(op, IsOp):
         values_to_z3[op.output] = convert_attr_to_z3_attr(op.expected, attribute_sort)
@@ -136,10 +141,11 @@ def get_constraint_as_z3(
                 dialect_def.sym_name.data + "." + base_attr_def.sym_name.data
             )
         values_to_z3[op.output] = create_value(op.output)
+        is_base = attribute_sort.__dict__["is_" + attribute_name](
+            values_to_z3[op.output]
+        )
         add_constraint(
-            create_z3_attribute(
-                attribute_sort, "is_" + attribute_name, values_to_z3[op.output]
-            )
+            z3.Or(is_base, values_to_z3[op.output] == attribute_sort.unassigned)
         )
         return
     if isinstance(op, ParametricOp):
@@ -152,8 +158,14 @@ def get_constraint_as_z3(
         parameters = [values_to_z3[arg] for arg in op.args]
         attribute_name = dialect_def.sym_name.data + "." + base_attr_def.sym_name.data
 
-        values_to_z3[op.output] = create_z3_attribute(
-            attribute_sort, attribute_name, *parameters
+        values_to_z3[op.output] = create_value(op.output)
+        add_constraint(
+            values_to_z3[op.output]
+            == z3.If(
+                z3.Or(*[arg == attribute_sort.unassigned for arg in parameters]),
+                attribute_sort.unassigned,
+                create_z3_attribute(attribute_sort, attribute_name, *parameters),
+            )
         )
         return
     if isinstance(op, EqOp):
@@ -161,13 +173,29 @@ def get_constraint_as_z3(
         for arg in op.args[1:]:
             add_constraint(val0 == values_to_z3[arg])
         return
-    if isinstance(op, YieldOp | MatchOp):
+    if isinstance(op, MatchOp):
+        add_constraint(values_to_z3[op.arg] != attribute_sort.unassigned)
+        return
+    if isinstance(op, YieldOp):
+        for arg in op.args:
+            add_constraint(values_to_z3[arg] != attribute_sort.unassigned)
+        for arg in op.args:
+            named_value = create_value(arg)
+            add_constraint(values_to_z3[arg] == named_value)
         return
     assert False, f"Unsupported op {op.name}"
 
 
 def check_subset_to_z3(program: ModuleOp, solver: z3.Solver):
     assert isinstance(main := program.ops.last, CheckSubsetOp)
+
+    # Set name_hints on values that don't have one and that are used in YieldOp
+    for op in program.walk():
+        if isinstance(op, YieldOp) and "name_hints" in op.attributes:
+            assert isa(op.attributes["name_hints"], ArrayAttr[StringAttr])
+            for index, arg in enumerate(op.args):
+                if not arg.name_hint:
+                    arg.name_hint = op.attributes["name_hints"].data[index].data
 
     # The Attribute datatype is an union of all possible attributes found in the
     # IRDL program, plus an "Other" attribute that correspond to any other
@@ -176,6 +204,7 @@ def check_subset_to_z3(program: ModuleOp, solver: z3.Solver):
     # int correspond to an integer value. It is used for an integer bitwidth for
     # instance.
     attribute_sort: Any = z3.Datatype("Attribute")
+    attribute_sort.declare("unassigned")
     attribute_sort.declare("other", ("other_arg_0", z3.IntSort()))
     attribute_sort.declare("int", ("int_arg_0", z3.IntSort()))
     attribute_sort.declare("string", ("string_arg_0", z3.StringSort()))
