@@ -79,37 +79,19 @@ pdl.pattern @MulSIExtendedRHSOne : benefit(0) {
     }
 }
 
-// CHECK:        irdl_ext.check_subset {
-// CHECK-NEXT:     %match_one_op_index = irdl.parametric @builtin::@index<>
-// CHECK-NEXT:     %0 = irdl.base "#int" {"base_name" = "#int"}
-// CHECK-NEXT:     %match_one_op_integer = irdl.parametric @builtin::@integer_type<%0>
-// CHECK-NEXT:     %match_one_op_t = irdl.any_of(%match_one_op_index, %match_one_op_integer)
-// CHECK-NEXT:     %match_root_index = irdl.parametric @builtin::@index<>
-// CHECK-NEXT:     %1 = irdl.base "#int" {"base_name" = "#int"}
-// CHECK-NEXT:     %match_root_integer = irdl.parametric @builtin::@integer_type<%1>
-// CHECK-NEXT:     %match_root_t = irdl.any_of(%match_root_index, %match_root_integer)
-// CHECK-NEXT:     %2 = irdl.all_of(%match_root_t, %match_one_op_t)
-// CHECK-NEXT:     irdl_ext.yield %2, %2, %2, %2
-// CHECK-NEXT:   } of {
-// CHECK-NEXT:     %rewrite_one_op_index = irdl.parametric @builtin::@index<>
-// CHECK-NEXT:     %3 = irdl.base "#int" {"base_name" = "#int"}
-// CHECK-NEXT:     %rewrite_one_op_integer = irdl.parametric @builtin::@integer_type<%3>
-// CHECK-NEXT:     %rewrite_one_op_t = irdl.any_of(%rewrite_one_op_index, %rewrite_one_op_integer)
-// CHECK-NEXT:     %rewrite_zero_op_index = irdl.parametric @builtin::@index<>
-// CHECK-NEXT:     %4 = irdl.base "#int" {"base_name" = "#int"}
-// CHECK-NEXT:     %rewrite_zero_op_integer = irdl.parametric @builtin::@integer_type<%4>
-// CHECK-NEXT:     %rewrite_zero_op_t = irdl.any_of(%rewrite_zero_op_index, %rewrite_zero_op_integer)
-// CHECK-NEXT:     %rewrite_cmpi_op_index = irdl.parametric @builtin::@index<>
-// CHECK-NEXT:     %5 = irdl.base "#int" {"base_name" = "#int"}
-// CHECK-NEXT:     %rewrite_cmpi_op_integer = irdl.parametric @builtin::@integer_type<%5>
-// CHECK-NEXT:     %rewrite_cmpi_op_t = irdl.any_of(%rewrite_cmpi_op_index, %rewrite_cmpi_op_integer)
-// CHECK-NEXT:     %6 = irdl.base "#int" {"base_name" = "#int"}
-// CHECK-NEXT:     %rewrite_extsi_op_integer2 = irdl.parametric @builtin::@integer_type<%6>
-// CHECK-NEXT:     %rewrite_root_index = irdl.parametric @builtin::@index<>
-// CHECK-NEXT:     %7 = irdl.base "#int" {"base_name" = "#int"}
-// CHECK-NEXT:     %rewrite_root_integer = irdl.parametric @builtin::@integer_type<%7>
-// CHECK-NEXT:     %rewrite_root_t = irdl.any_of(%rewrite_root_index, %rewrite_root_integer)
-// CHECK-NEXT:     %8 = irdl.all_of(%rewrite_root_t, %rewrite_extsi_op_integer2, %rewrite_cmpi_op_t, %rewrite_zero_op_t, %rewrite_one_op_t)
-// CHECK-NEXT:     irdl_ext.yield %8, %8, %8, %8
-// CHECK-NEXT:   }
+// CHECK:       irdl_ext.check_subset {
+// CHECK-NEXT:    %match_op_index = irdl.parametric @builtin::@index<>
+// CHECK-NEXT:    %0 = irdl.base "#int" {"base_name" = "#int"}
+// CHECK-NEXT:    %match_op_integer = irdl.parametric @builtin::@integer_type<%0>
+// CHECK-NEXT:    %match_op_t = irdl.any_of(%match_op_index, %match_op_integer)
+// CHECK-NEXT:    irdl_ext.yield %match_op_t, %match_op_t, %match_op_t
+// CHECK-NEXT:  } of {
+// CHECK-NEXT:    %rewrite_new_op_index = irdl.parametric @builtin::@index<>
+// CHECK-NEXT:    %1 = irdl.base "#int" {"base_name" = "#int"}
+// CHECK-NEXT:    %rewrite_new_op_integer = irdl.parametric @builtin::@integer_type<%1>
+// CHECK-NEXT:    %rewrite_new_op_t = irdl.any_of(%rewrite_new_op_index, %rewrite_new_op_integer)
+// CHECK-NEXT:    irdl_ext.match %rewrite_new_op_t
+// CHECK-NEXT:    irdl_ext.yield %rewrite_new_op_t, %rewrite_new_op_t, %rewrite_new_op_t
+// CHECK-NEXT:  }
+
 

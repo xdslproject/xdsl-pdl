@@ -58,6 +58,9 @@ pdl.pattern @AddCommute : benefit(0) {
 // CHECK-NEXT:    %1 = irdl.base "#int" {"base_name" = "#int"}
 // CHECK-NEXT:    %rewrite_new_op_integer = irdl.parametric @builtin::@integer_type<%1>
 // CHECK-NEXT:    %rewrite_new_op_t = irdl.any_of(%rewrite_new_op_index, %rewrite_new_op_integer)
+// CHECK-NEXT:    irdl_ext.match %rewrite_new_op_t
 // CHECK-NEXT:    irdl_ext.yield %rewrite_new_op_t, %rewrite_new_op_t, %rewrite_new_op_t
 // CHECK-NEXT:  }
+
+
 
