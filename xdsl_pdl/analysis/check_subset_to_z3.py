@@ -31,7 +31,7 @@ from xdsl.dialects.irdl import (
 
 from xdsl.ir import Attribute, Operation, SSAValue
 from xdsl.parser import IndexType, ModuleOp
-from xdsl_pdl.dialects.irdl_extension import CheckSubsetOp, EqOp, YieldOp
+from xdsl_pdl.dialects.irdl_extension import CheckSubsetOp, EqOp, MatchOp, YieldOp
 
 
 def add_attribute_constructors_from_irdl(
@@ -161,7 +161,7 @@ def get_constraint_as_z3(
         for arg in op.args[1:]:
             add_constraint(val0 == values_to_z3[arg])
         return
-    if isinstance(op, YieldOp):
+    if isinstance(op, YieldOp | MatchOp):
         return
     assert False, f"Unsupported op {op.name}"
 
