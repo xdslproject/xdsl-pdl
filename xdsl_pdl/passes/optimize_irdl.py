@@ -64,9 +64,19 @@ def get_bases(value: SSAValue) -> set[SymbolRefAttr | str] | None:
         return None
 
 
+def is_pure(value: SSAValue) -> bool:
+    if isinstance(value.owner, irdl.IsOp):
+        return True
+    if isinstance(value.owner, irdl.ParametricOp):
+        return all(is_pure(arg) for arg in value.owner.args)
+    return False
+
+
 def is_rooted_dag_with_one_use(value: SSAValue) -> bool:
+    if is_pure(value):
+        return True
     assert isinstance(value.owner, Operation)
-    if len(value.uses) != 1 and not isinstance(value.owner, irdl.IsOp):
+    if len(value.uses) != 1:
         return False
 
     values_to_walk = [value]
@@ -88,9 +98,7 @@ def is_rooted_dag_with_one_use(value: SSAValue) -> bool:
         assert len(operation.results) == 1
         if operation.results[0] == value:
             continue
-        if isinstance(operation, irdl.IsOp):
-            continue
-        if isinstance(operation, irdl.ParametricOp) and not operation.args:
+        if is_pure(operation.results[0]):
             continue
         for use in operation.results[0].uses:
             if use.operation not in operations:
@@ -202,24 +210,43 @@ def is_dag_equivalent(
     return True
 
 
-class AllOfEquivAnyOfPattern(RewritePattern):
+class AllOfEquivPattern(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: irdl.AllOfOp, rewriter: PatternRewriter, /):
         for index, arg in enumerate(op.args):
-            if not isinstance(
-                arg.owner, irdl.AnyOfOp
-            ) or not is_rooted_dag_with_one_use(arg):
+            if not is_rooted_dag_with_one_use(arg):
                 continue
             for index2, arg2 in list(enumerate(op.args))[index + 1 :]:
-                if not isinstance(
-                    arg2.owner, irdl.AnyOfOp
-                ) or not is_rooted_dag_with_one_use(arg2):
+                if not is_rooted_dag_with_one_use(arg2):
                     continue
                 if not is_dag_equivalent(arg, arg2):
                     continue
 
                 rewriter.replace_matched_op(
                     irdl.AllOfOp(
+                        [
+                            *op.args[:index2],
+                            *op.args[index2 + 1 :],
+                        ]
+                    )
+                )
+                return
+
+
+class AnyOfEquivPattern(RewritePattern):
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: irdl.AnyOfOp, rewriter: PatternRewriter, /):
+        for index, arg in enumerate(op.args):
+            if not is_rooted_dag_with_one_use(arg):
+                continue
+            for index2, arg2 in list(enumerate(op.args))[index + 1 :]:
+                if not is_rooted_dag_with_one_use(arg2):
+                    continue
+                if not is_dag_equivalent(arg, arg2):
+                    continue
+
+                rewriter.replace_matched_op(
+                    irdl.AnyOfOp(
                         [
                             *op.args[:index2],
                             *op.args[index2 + 1 :],
@@ -477,6 +504,29 @@ class RemoveBaseFromAllOfInNestedAnyOfPattern(RewritePattern):
                 return
 
 
+class RemoveDuplicateAnyOfAllOfPattern(RewritePattern):
+    # AnyOf(AllOf(x, y), AllOf(x, y), z) -> AnyOf(AllOf(x, y), z)
+
+    @op_type_rewrite_pattern
+    def match_and_rewrite(self, op: irdl.AnyOfOp, rewriter: PatternRewriter, /):
+        for index, arg in enumerate(op.args):
+            if not isinstance(arg.owner, irdl.AllOfOp) or not len(arg.uses) == 1:
+                continue
+            for index2, arg2 in list(enumerate(op.args))[index + 1 :]:
+                if not isinstance(arg2.owner, irdl.AllOfOp) or not len(arg2.uses) == 1:
+                    continue
+                if arg.owner.args == arg2.owner.args:
+                    rewriter.replace_matched_op(
+                        irdl.AnyOfOp(
+                            [
+                                *op.args[:index2],
+                                *op.args[index2 + 1 :],
+                            ]
+                        )
+                    )
+                    return
+
+
 class RemoveDuplicateMatchOpPattern(RewritePattern):
     @op_type_rewrite_pattern
     def match_and_rewrite(
@@ -557,9 +607,11 @@ class OptimizeIRDL(ModulePass):
                     AllOfNestedPattern(),
                     AnyOfNestedPattern(),
                     # NestAllOfInAnyOfPattern(),
-                    AllOfEquivAnyOfPattern(),
+                    AllOfEquivPattern(),
+                    AnyOfEquivPattern(),
                     AllOfIsPattern(),
                     RemoveAllOfContradictionPatterns(),
+                    RemoveDuplicateAnyOfAllOfPattern(),
                     RemoveBaseFromAllOfInNestedAnyOfPattern(),
                     RemoveDuplicateMatchOpPattern(),
                     CSEIsParametricPattern(),
