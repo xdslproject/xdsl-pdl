@@ -24,10 +24,16 @@ from xdsl.dialects.pdl import (
     TypeOp,
 )
 
-from xdsl.dialects.builtin import IntegerType, SymbolRefAttr, ModuleOp, UnitAttr
+from xdsl.dialects.builtin import (
+    ArrayAttr,
+    StringAttr,
+    SymbolRefAttr,
+    ModuleOp,
+    UnitAttr,
+    DictionaryAttr,
+)
 from xdsl.dialects import irdl
 from xdsl.traits import SymbolTable
-from xdsl.utils.hints import isa
 from z3 import Symbol
 from xdsl_pdl.dialects.irdl_extension import CheckSubsetOp, EqOp, MatchOp, YieldOp
 
@@ -108,10 +114,40 @@ def convert_pattern_to_check_subset(program: PatternOp) -> CheckSubsetOp:
             continue
 
     Rewriter.insert_ops_at_location(
-        [YieldOp(yield_lhs_args)], InsertPoint.at_end(check_subset.lhs.block)
+        [
+            YieldOp(
+                yield_lhs_args,
+                DictionaryAttr(
+                    {
+                        "name_hints": ArrayAttr(
+                            [
+                                StringAttr(arg.name_hint or "unknown")
+                                for arg in yield_lhs_args
+                            ]
+                        )
+                    }
+                ),
+            )
+        ],
+        InsertPoint.at_end(check_subset.lhs.block),
     )
     Rewriter.insert_ops_at_location(
-        [YieldOp(yield_rhs_args)], InsertPoint.at_end(check_subset.rhs.block)
+        [
+            YieldOp(
+                yield_rhs_args,
+                DictionaryAttr(
+                    {
+                        "name_hints": ArrayAttr(
+                            [
+                                StringAttr(arg.name_hint or "unknown")
+                                for arg in yield_rhs_args
+                            ]
+                        )
+                    }
+                ),
+            )
+        ],
+        InsertPoint.at_end(check_subset.rhs.block),
     )
 
     # Start rewriting the PDL operations in the rhs part:
@@ -222,6 +258,26 @@ class PDLToIRDLNativeConstraintPattern(RewritePattern):
     def match_and_rewrite(
         self, op: ApplyNativeConstraintOp, rewriter: PatternRewriter, /
     ):
+        if op.constraint_name.data == "is_vector":
+            base_vector = irdl.BaseOp(SymbolRefAttr("builtin", ["vector"]))
+            eq_base = EqOp([base_vector.output, op.args[0]])
+            rewriter.replace_matched_op([base_vector, eq_base])
+            return
+        if op.constraint_name.data == "is_tensor":
+            base_tensor = irdl.BaseOp(SymbolRefAttr("builtin", ["tensor"]))
+            eq_base = EqOp([base_tensor.output, op.args[0]])
+            rewriter.replace_matched_op([base_tensor, eq_base])
+            return
+        if op.constraint_name.data == "is_vector_or_tensor":
+            base_vector = irdl.BaseOp(SymbolRefAttr("builtin", ["vector"]))
+            base_tensor = irdl.BaseOp(SymbolRefAttr("builtin", ["tensor"]))
+            base_vec_or_tensor = irdl.AnyOfOp([base_vector.output, base_tensor.output])
+            eq_base = EqOp([base_vec_or_tensor.output, op.args[0]])
+            rewriter.replace_matched_op(
+                [base_vector, base_tensor, base_vec_or_tensor, eq_base]
+            )
+            return
+
         rewriter.erase_matched_op()
 
 
