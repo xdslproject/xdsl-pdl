@@ -54,15 +54,18 @@ def main():
     )
 
     PDLToIRDLPass().apply(ctx, program)
+    if args.debug:
+        print("Converted IRDL program before optimization:")
+        print(program)
     OptimizeIRDL().apply(ctx, program)
     if args.debug:
-        print("Converted IRDL program:")
+        print("Converted IRDL program after optimization:")
         print(program)
     solver = z3.Solver()
     check_subset_to_z3(program, solver)
 
     print("SMT program:")
-    print(solver)
+    print(solver.to_smt2())
     if solver.check() == z3.sat:
         print("sat: PDL rewrite may break IRDL invariants")
         print("model: ", solver.model())
