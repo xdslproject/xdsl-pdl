@@ -12,6 +12,7 @@ from xdsl.parser import Parser
 from xdsl.rewriter import InsertPoint, Rewriter
 from xdsl_pdl.analysis.check_subset_to_z3 import check_subset_to_z3
 from xdsl_pdl.dialects.irdl_extension import IRDLExtension
+from xdsl_pdl.dialects.transfer import Transfer
 
 from xdsl.dialects.builtin import (
     Builtin,
@@ -39,6 +40,7 @@ def main():
     ctx.load_dialect(IRDL)
     ctx.load_dialect(IRDLExtension)
     ctx.load_dialect(PDL)
+    ctx.load_dialect(Transfer)
 
     # Parse the input program
     with open(args.input_file) as f:

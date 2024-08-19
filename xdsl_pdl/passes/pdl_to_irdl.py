@@ -10,7 +10,7 @@ from xdsl.pattern_rewriter import (
     RewritePattern,
     op_type_rewrite_pattern,
 )
-
+from xdsl_pdl.dialects import transfer
 from xdsl.dialects.pdl import (
     ApplyNativeConstraintOp,
     ApplyNativeRewriteOp,
@@ -200,6 +200,9 @@ class PDLToIRDLTypePattern(RewritePattern):
     def match_and_rewrite(self, op: TypeOp, rewriter: PatternRewriter, /):
         if op.constantType is None:
             rewriter.replace_matched_op(irdl.AnyOp())
+            return
+        if op.constantType == transfer.IntegerType():
+            rewriter.replace_matched_op(irdl.BaseOp("!builtin.integer_type"))
             return
         rewriter.replace_matched_op(irdl.IsOp(op.constantType))
 
