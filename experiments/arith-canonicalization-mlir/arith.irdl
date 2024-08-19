@@ -1,0 +1,286 @@
+irdl.dialect @builtin {
+    irdl.type @index
+
+    irdl.attribute @signedness {
+        %signless = irdl.is "signless"
+        %signed = irdl.is "signed"
+        %unsigned = irdl.is "unsigned"
+        %value = irdl.any_of(%signless, %signed, %unsigned)
+        irdl.parameters(%value)
+    }
+
+    irdl.type @integer_type {
+        %bitwidth = irdl.base "#int"
+        %signedness = irdl.base @signedness
+        irdl.parameters(%bitwidth, %signedness)
+    }
+
+    irdl.attribute @integer_attr {
+        %index = irdl.base @index
+        %integer = irdl.base @integer_type
+        %t = irdl.any_of(%index, %integer)
+        %value = irdl.base "#int"
+        irdl.parameters(%value, %t)
+    }
+
+    irdl.type @tensor {
+        %zero_shape = irdl.is "zero_shape"
+        %nonzero_shape = irdl.base "#int"
+        %shape = irdl.any_of (%zero_shape, %nonzero_shape)
+        %element_type = irdl.any
+        irdl.parameters(%shape, %element_type)
+    }
+
+    irdl.type @vector {
+        %zero_shape = irdl.is "zero_shape"
+        %nonzero_shape = irdl.base "#int"
+        %shape = irdl.any_of (%zero_shape, %nonzero_shape)
+        %element_type = irdl.any
+        irdl.parameters(%shape, %element_type)
+    }
+}
+
+irdl.dialect @arith {
+    irdl.operation @constant {
+        // %attr = irdl.any
+        // irdl.attributes(%attr)
+        %type = irdl.any
+        irdl.results(%type)
+    }
+
+    irdl.operation @addi {
+        %index = irdl.base @builtin::@index
+        %signless_opcode = irdl.is "signless"
+        %signless = irdl.parametric @builtin::@signedness<%signless_opcode>
+        %bitwidth = irdl.any
+        %integer = irdl.parametric @builtin::@integer_type<%bitwidth, %signless>
+        %signless_integer = irdl.any_of(%index, %integer)
+        %nonzero_shape = irdl.base "#int"
+        %shape = irdl.any
+        %vector = irdl.parametric @builtin::@vector<%nonzero_shape, %signless_integer>
+        %tensor = irdl.parametric @builtin::@tensor<%shape, %signless_integer>
+        %type = irdl.any_of(%signless_integer, %vector, %tensor)
+        irdl.operands(%type, %type)
+        irdl.results(%type)
+    }
+
+    irdl.operation @subi {
+        %index = irdl.base @builtin::@index
+        %signless_opcode = irdl.is "signless"
+        %signless = irdl.parametric @builtin::@signedness<%signless_opcode>
+        %bitwidth = irdl.any
+        %integer = irdl.parametric @builtin::@integer_type<%bitwidth, %signless>
+        %signless_integer = irdl.any_of(%index, %integer)
+        %nonzero_shape = irdl.base "#int"
+        %shape = irdl.any
+        %vector = irdl.parametric @builtin::@vector<%nonzero_shape, %signless_integer>
+        %tensor = irdl.parametric @builtin::@tensor<%shape, %signless_integer>
+        %type = irdl.any_of(%signless_integer, %vector, %tensor)
+        irdl.operands(%type, %type)
+        irdl.results(%type)
+    }
+
+    irdl.operation @muli {
+        %index = irdl.base @builtin::@index
+        %signless_opcode = irdl.is "signless"
+        %signless = irdl.parametric @builtin::@signedness<%signless_opcode>
+        %bitwidth = irdl.any
+        %integer = irdl.parametric @builtin::@integer_type<%bitwidth, %signless>
+        %signless_integer = irdl.any_of(%index, %integer)
+        %nonzero_shape = irdl.base "#int"
+        %shape = irdl.any
+        %vector = irdl.parametric @builtin::@vector<%nonzero_shape, %signless_integer>
+        %tensor = irdl.parametric @builtin::@tensor<%shape, %signless_integer>
+        %type = irdl.any_of(%signless_integer, %vector, %tensor)
+        irdl.operands(%type, %type)
+        irdl.results(%type)
+    }
+
+    irdl.operation @andi {
+        %index = irdl.base @builtin::@index
+        %signless_opcode = irdl.is "signless"
+        %signless = irdl.parametric @builtin::@signedness<%signless_opcode>
+        %bitwidth = irdl.any
+        %integer = irdl.parametric @builtin::@integer_type<%bitwidth, %signless>
+        %signless_integer = irdl.any_of(%index, %integer)
+        %nonzero_shape = irdl.base "#int"
+        %shape = irdl.any
+        %vector = irdl.parametric @builtin::@vector<%nonzero_shape, %signless_integer>
+        %tensor = irdl.parametric @builtin::@tensor<%shape, %signless_integer>
+        %type = irdl.any_of(%signless_integer, %vector, %tensor)
+        irdl.operands(%type, %type)
+        irdl.results(%type)
+    }
+
+    irdl.operation @ori {
+        %index = irdl.base @builtin::@index
+        %signless_opcode = irdl.is "signless"
+        %signless = irdl.parametric @builtin::@signedness<%signless_opcode>
+        %bitwidth = irdl.any
+        %integer = irdl.parametric @builtin::@integer_type<%bitwidth, %signless>
+        %signless_integer = irdl.any_of(%index, %integer)
+        %nonzero_shape = irdl.base "#int"
+        %shape = irdl.any
+        %vector = irdl.parametric @builtin::@vector<%nonzero_shape, %signless_integer>
+        %tensor = irdl.parametric @builtin::@tensor<%shape, %signless_integer>
+        %type = irdl.any_of(%signless_integer, %vector, %tensor)
+        irdl.operands(%type, %type)
+        irdl.results(%type)
+    }
+
+    irdl.operation @xori {
+        %index = irdl.base @builtin::@index
+        %signless_opcode = irdl.is "signless"
+        %signless = irdl.parametric @builtin::@signedness<%signless_opcode>
+        %bitwidth = irdl.any
+        %integer = irdl.parametric @builtin::@integer_type<%bitwidth, %signless>
+        %signless_integer = irdl.any_of(%index, %integer)
+        %nonzero_shape = irdl.base "#int"
+        %shape = irdl.any
+        %vector = irdl.parametric @builtin::@vector<%nonzero_shape, %signless_integer>
+        %tensor = irdl.parametric @builtin::@tensor<%shape, %signless_integer>
+        %type = irdl.any_of(%signless_integer, %vector, %tensor)
+        irdl.operands(%type, %type)
+        irdl.results(%type)
+    }
+
+    irdl.operation @cmpi {
+        %index = irdl.base @builtin::@index
+        %signless_opcode = irdl.is "signless"
+        %signless = irdl.parametric @builtin::@signedness<%signless_opcode>
+        %bitwidth = irdl.any
+        %integer = irdl.parametric @builtin::@integer_type<%bitwidth, %signless>
+        %signless_integer = irdl.any_of(%index, %integer)
+        %shape = irdl.any
+        %vector = irdl.parametric @builtin::@vector<%shape, %signless_integer>
+        %tensor = irdl.parametric @builtin::@tensor<%shape, %signless_integer>
+        %type = irdl.any_of(%signless_integer, %vector, %tensor)
+        
+        %bool = irdl.is i1
+        %vector_bool = irdl.parametric @builtin::@vector<%shape, %bool>
+        %tensor_bool = irdl.parametric @builtin::@tensor<%shape, %bool>
+        %type_bool = irdl.any_of(%bool, %vector_bool, %tensor_bool)
+
+        irdl.operands(%type, %type)
+        irdl.results(%type_bool)
+    }
+
+    irdl.operation @select {
+        %index = irdl.base @builtin::@index
+        %signless_opcode = irdl.is "signless"
+        %signless = irdl.parametric @builtin::@signedness<%signless_opcode>
+        %bitwidth = irdl.any
+        %integer = irdl.parametric @builtin::@integer_type<%bitwidth, %signless>
+        %signless_integer = irdl.any_of(%index, %integer)
+        %shape = irdl.any
+        %vector = irdl.parametric @builtin::@vector<%shape, %signless_integer>
+        %tensor = irdl.parametric @builtin::@tensor<%shape, %signless_integer>
+        %type = irdl.any_of(%signless_integer, %vector, %tensor)
+        
+        %bool = irdl.is i1
+        %vector_bool = irdl.parametric @builtin::@vector<%shape, %bool>
+        %tensor_bool = irdl.parametric @builtin::@tensor<%shape, %bool>
+        %type_bool = irdl.any_of(%bool, %vector_bool, %tensor_bool)
+
+        irdl.operands(%type_bool, %type, %type)
+        irdl.results(%type)
+    }
+
+    irdl.operation @extui {
+        %signless_opcode_in = irdl.is "signless"
+        %signless_in = irdl.parametric @builtin::@signedness<%signless_opcode_in>
+        %bitwidth_in = irdl.any
+        %signless_integer_in = irdl.parametric @builtin::@integer_type<%bitwidth_in, %signless_in>
+
+        %shape = irdl.any
+        %tensor_in = irdl.parametric @builtin::@tensor<%shape, %signless_integer_in>
+        %vector_in = irdl.parametric @builtin::@vector<%shape, %signless_integer_in>
+        %type_in = irdl.any_of(%signless_integer_in, %vector_in, %tensor_in)
+
+
+        %signless_opcode_out = irdl.is "signless"
+        %signless_out = irdl.parametric @builtin::@signedness<%signless_opcode_out>
+        %bitwidth_out = irdl.any
+        %signless_integer_out = irdl.parametric @builtin::@integer_type<%bitwidth_out, %signless_out>
+
+        %tensor_out = irdl.parametric @builtin::@tensor<%shape, %signless_integer_out>
+        %vector_out = irdl.parametric @builtin::@vector<%shape, %signless_integer_out>
+        %type_out = irdl.any_of(%signless_integer_out, %vector_out, %tensor_out)
+
+
+        irdl.operands(%type_in)
+        irdl.results(%type_out)
+    }
+
+    irdl.operation @extsi {
+        %signless_opcode_in = irdl.is "signless"
+        %signless_in = irdl.parametric @builtin::@signedness<%signless_opcode_in>
+        %bitwidth_in = irdl.any
+        %signless_integer_in = irdl.parametric @builtin::@integer_type<%bitwidth_in, %signless_in>
+
+        %shape = irdl.any
+        %tensor_in = irdl.parametric @builtin::@tensor<%shape, %signless_integer_in>
+        %vector_in = irdl.parametric @builtin::@vector<%shape, %signless_integer_in>
+        %type_in = irdl.any_of(%signless_integer_in, %vector_in, %tensor_in)
+
+
+        %signless_opcode_out = irdl.is "signless"
+        %signless_out = irdl.parametric @builtin::@signedness<%signless_opcode_out>
+        %bitwidth_out = irdl.any
+        %signless_integer_out = irdl.parametric @builtin::@integer_type<%bitwidth_out, %signless_out>
+
+        %tensor_out = irdl.parametric @builtin::@tensor<%shape, %signless_integer_out>
+        %vector_out = irdl.parametric @builtin::@vector<%shape, %signless_integer_out>
+        %type_out = irdl.any_of(%signless_integer_out, %vector_out, %tensor_out)
+
+
+        irdl.operands(%type_in)
+        irdl.results(%type_out)
+    }
+
+    irdl.operation @trunci {
+        %signless_opcode_in = irdl.is "signless"
+        %signless_in = irdl.parametric @builtin::@signedness<%signless_opcode_in>
+        %bitwidth_in = irdl.any
+        %signless_integer_in = irdl.parametric @builtin::@integer_type<%bitwidth_in, %signless_in>
+
+        %shape = irdl.any
+        %tensor_in = irdl.parametric @builtin::@tensor<%shape, %signless_integer_in>
+        %vector_in = irdl.parametric @builtin::@vector<%shape, %signless_integer_in>
+        %type_in = irdl.any_of(%signless_integer_in, %vector_in, %tensor_in)
+
+
+        %signless_opcode_out = irdl.is "signless"
+        %signless_out = irdl.parametric @builtin::@signedness<%signless_opcode_out>
+        %bitwidth_out = irdl.any
+        %signless_integer_out = irdl.parametric @builtin::@integer_type<%bitwidth_out, %signless_out>
+
+        %tensor_out = irdl.parametric @builtin::@tensor<%shape, %signless_integer_out>
+        %vector_out = irdl.parametric @builtin::@vector<%shape, %signless_integer_out>
+        %type_out = irdl.any_of(%signless_integer_out, %vector_out, %tensor_out)
+
+
+        irdl.operands(%type_in)
+        irdl.results(%type_out)
+    }
+
+    irdl.operation @shrsi {
+        %signless_opcode = irdl.is "signless"
+        %signless = irdl.parametric @builtin::@signedness<%signless_opcode>
+        %bitwidth = irdl.any
+        %signless_integer = irdl.parametric @builtin::@integer_type<%bitwidth, %signless>
+
+        irdl.operands(%signless_integer, %signless_integer)
+        irdl.results(%signless_integer)
+    }
+
+    irdl.operation @shrui {
+        %signless_opcode = irdl.is "signless"
+        %signless = irdl.parametric @builtin::@signedness<%signless_opcode>
+        %bitwidth = irdl.any
+        %signless_integer = irdl.parametric @builtin::@integer_type<%bitwidth, %signless>
+
+        irdl.operands(%signless_integer, %signless_integer)
+        irdl.results(%signless_integer)
+    }
+}

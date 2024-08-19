@@ -26,6 +26,7 @@ from xdsl.dialects.pdl import (
 
 from xdsl.dialects.builtin import (
     ArrayAttr,
+    IntegerType,
     StringAttr,
     SymbolRefAttr,
     ModuleOp,
@@ -361,6 +362,26 @@ def integer_attr_arithmetic_irdl(op: ApplyNativeRewriteOp, rewriter: PatternRewr
     rewriter.replace_matched_op([], new_results=[op.args[0]])
 
 
+def get_width_irdl(op: ApplyNativeRewriteOp, rewriter: PatternRewriter):
+    """Return the IRDL constraint representing the PDL constraint `get_zero`."""
+    width = irdl.AnyOp()
+    res = irdl.ParametricOp(
+        SymbolRefAttr("builtin", ["integer_attr"]), [width.output, op.args[1]]
+    )
+    rewriter.replace_matched_op([width, res])
+
+
+def get_invert_arith_cmpi_irdl(op: ApplyNativeRewriteOp, rewriter: PatternRewriter):
+    """Return the IRDL constraint representing the PDL constraint `get_zero`."""
+    # TODO constraint the values the predicate can take
+    value = irdl.AnyOp()
+    i64 = irdl.IsOp(IntegerType(64))
+    res = irdl.ParametricOp(
+        SymbolRefAttr("builtin", ["integer_attr"]), [value.output, i64.output]
+    )
+    rewriter.replace_matched_op([value, i64, res])
+
+
 class PDLToIRDLNativeRewritePattern(RewritePattern):
     """
     Replace `pdl.native_rewrite` operations with our hardcoded implementation.
@@ -368,11 +389,17 @@ class PDLToIRDLNativeRewritePattern(RewritePattern):
 
     @op_type_rewrite_pattern
     def match_and_rewrite(self, op: ApplyNativeRewriteOp, rewriter: PatternRewriter, /):
-        if op.constraint_name.data == "get_zero":
+        if op.constraint_name.data in ("get_zero", "get_zero_attr"):
             get_zero_irdl(op, rewriter)
             return
-        if op.constraint_name.data == "addi":
+        if op.constraint_name.data in ("addi", "subi", "muli"):
             integer_attr_arithmetic_irdl(op, rewriter)
+            return
+        if op.constraint_name.data == "get_width":
+            get_width_irdl(op, rewriter)
+            return
+        if op.constraint_name.data == "invert_arith_cmpi_predicate":
+            get_invert_arith_cmpi_irdl(op, rewriter)
             return
         raise Exception(f"Unknown native rewrite {op.constraint_name}")
 

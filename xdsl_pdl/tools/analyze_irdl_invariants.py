@@ -9,16 +9,17 @@ import z3
 
 from xdsl.ir import MLContext
 from xdsl.parser import Parser
-from xdsl.rewriter import InsertPoint, Rewriter
+from xdsl.rewriter import Rewriter
 from xdsl_pdl.analysis.check_subset_to_z3 import check_subset_to_z3
 from xdsl_pdl.dialects.irdl_extension import IRDLExtension
 from xdsl_pdl.dialects.transfer import Transfer
 
 from xdsl.dialects.builtin import (
     Builtin,
+    ModuleOp,
 )
 from xdsl.dialects.irdl import IRDL
-from xdsl.dialects.pdl import PDL
+from xdsl.dialects.pdl import PDL, PatternOp
 from xdsl_pdl.passes.optimize_irdl import OptimizeIRDL
 from xdsl_pdl.passes.pdl_to_irdl import PDLToIRDLPass
 
@@ -44,35 +45,51 @@ def main():
 
     # Parse the input program
     with open(args.input_file) as f:
-        program = Parser(ctx, f.read()).parse_module()
+        all_patterns_program = Parser(ctx, f.read()).parse_module()
 
     # Parse the IRDL program
     with open(args.irdl_file) as f:
         irdl_program = Parser(ctx, f.read()).parse_module()
 
-    # Move the IRDL file at the beginning of the program
-    Rewriter.inline_block_at_start(
-        irdl_program.regions[0].block, program.regions[0].block
-    )
+    has_broken_pattern = False
+    for pattern_op in (
+        op for op in all_patterns_program.ops if isinstance(op, PatternOp)
+    ):
+        print("Pattern ", pattern_op.sym_name)
+        program = ModuleOp([pattern_op.clone()])
 
-    PDLToIRDLPass().apply(ctx, program)
-    if args.debug:
-        print("Converted IRDL program before optimization:")
-        print(program)
-    OptimizeIRDL().apply(ctx, program)
-    if args.debug:
-        print("Converted IRDL program after optimization:")
-        print(program)
-    solver = z3.Solver()
-    check_subset_to_z3(program, solver)
+        # Move the IRDL file at the beginning of the program
+        Rewriter.inline_block_at_start(
+            irdl_program.clone().regions[0].block, program.regions[0].block
+        )
 
-    print("SMT program:")
-    print(solver.to_smt2())
-    if solver.check() == z3.sat:
-        print("sat: PDL rewrite may break IRDL invariants")
-        print("model: ", solver.model())
-    else:
-        print("unsat: PDL rewrite will not break IRDL invariants")
+        PDLToIRDLPass().apply(ctx, program)
+        if args.debug:
+            print("Converted IRDL program before optimization:")
+            print(program)
+        OptimizeIRDL().apply(ctx, program)
+        if args.debug:
+            print("Converted IRDL program after optimization:")
+            print(program)
+        solver = z3.Solver()
+        check_subset_to_z3(program, solver)
+
+        if args.debug:
+            print("SMT program:")
+            print(solver.to_smt2())
+        if solver.check() == z3.sat:
+            print("sat: PDL rewrite may break IRDL invariants")
+            print("model: ", solver.model())
+            has_broken_pattern = True
+        else:
+            print("unsat: PDL rewrite will not break IRDL invariants")
+
+    if has_broken_pattern:
+        print("Some patterns may break IRDL invariants")
+        sys.exit(1)
+
+    print("All patterns will not break IRDL invariants")
+    return
 
 
 if __name__ == "__main__":
